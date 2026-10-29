@@ -1,6 +1,6 @@
 # Glassbox
 
-**The audit trail every AI agent will soon be legally required to have — and structurally cannot, if it's built on a closed model.**
+**An audit trail for AI agents, built on an open-weight model — so the reasoning and token usage behind every decision are first-class API data, not something a vendor dashboard chooses to show you.**
 
 Built for the Nebius x NVIDIA Global AI Hackathon 2026.
 
@@ -10,7 +10,7 @@ Built for the Nebius x NVIDIA Global AI Hackathon 2026.
 
 An engineer running Salesforce **Agentforce** for public customer support had the AI agent pull from an internal-only knowledge article during a cancellation request and hand the customer internal cancel-retention instructions it was never supposed to see. It happened once, cost them a client, and could not be reliably reproduced afterward. Their own words: *"it is a black box we don't have control over."*
 
-That's not a startup's weekend hack failing. That's Salesforce's flagship enterprise agent platform, in production, this year. And it's structurally unfixable from where they're standing — because Agentforce's reasoning happens inside a closed model they don't own.
+That's not a startup's weekend hack failing. That's Salesforce's flagship enterprise agent platform, in production, this year, as described by an engineer in public discussion — not an official incident report. A closed-weight agent platform can still expose tool logs, outputs, and usage data. What it can't expose is the model's own reasoning process, because that lives inside weights the platform operator doesn't own — so when something like this happens, the team is stuck debugging from the outside.
 
 Builders running Vapi, Bland AI, and Retell report the same category of pain from the other direction: *"fragmented logs across STT/LLM/TTS," "cost unpredictability in real-time calls,"* debugging sessions that start from "a call just broke, somewhere, for some reason." Nobody can point at the moment the agent decided what to do, because none of these stacks expose that moment as data.
 
@@ -18,15 +18,15 @@ The AI agents market is worth **$10.91B in 2026 and projected to hit $50.31B by 
 
 None of them can answer the question regulators are about to force them to answer: **"why did your AI agent say that, and prove it."**
 
-The EU AI Act's transparency obligations are already binding as of August 2026. Article 13 goes further for high-risk systems (enforcement begins December 2027): AI systems must be **"designed for interpretability from the outset,"** with a documented, built-in right to explanation (Article 11). A chatbot or voice agent that influences decisions about essential services, healthcare intake, credit, insurance, or hiring crosses into that high-risk bucket — which is exactly the kind of work these agents are being sold to do.
+The EU AI Act's transparency-disclosure rules (things like labeling a chatbot as a chatbot) are already binding as of 2 August 2026. Separately, obligations specific to high-risk AI systems apply on a later, staggered timeline — Article 11 (technical documentation), Article 12 (record-keeping and logging), and Article 13 (transparency and information for deployers) — reaching Annex III high-risk systems on 2 December 2027, and Annex I product-related systems on 2 August 2028. A chatbot or voice agent that influences decisions about essential services, healthcare intake, credit, insurance, or hiring can fall into that high-risk bucket, which is exactly the kind of work these agents are being sold to do.
 
-If your agent's "brain" is a closed API call, you cannot produce a real explanation. You can only show the user what the vendor's dashboard chooses to expose, after the fact, if at all. There is no fix for this that doesn't involve owning the weights.
+A closed-API agent can still log its tool calls, outputs, and usage data. What it structurally can't expose is the model's own reasoning process, because that signal lives inside weights the operator doesn't control. Owning the weights is what makes that specific kind of evidence available at all — not a complete fix for explainability, just the precondition for this particular signal existing.
 
 ## The gap
 
 **Open-weight reasoning models, self-hosted, expose the real thing — natively, as a first-class API field, not a workaround.**
 
-NVIDIA's Nemotron 3 models return a dedicated `reasoning` field alongside every response: the model's actual internal deliberation before it decided what to say. Not a prompt-engineered summary. Not a post-hoc rationalization. The literal chain-of-thought that produced the output, available because the weights — and therefore the inference pipeline — are open and self-hostable via Nebius Token Factory.
+NVIDIA's Nemotron 3 models return a dedicated `reasoning` field alongside every response: the model's own reported reasoning trace before it decided what to say. Not a prompt-engineered summary, and not a post-hoc rationalization we wrote after the fact — it's what the model itself generated as its deliberation, available because the weights (and therefore the inference pipeline) are open and self-hostable via Nebius Token Factory. NVIDIA documents this reasoning-trace capability; that documentation doesn't establish the trace as a complete or fully faithful account of the model's internal computation, which is exactly why we log it as an observation, not a proof — see below.
 
 Pair that with token-level usage data (also returned natively, also unavailable in the same verifiable form from closed voice-agent vendors who bill you a flat per-minute rate and never show you what's underneath it), and you get something the entire $50B agent market currently cannot offer: **a per-decision log with a real reasoning trace and a real cost receipt, generated automatically, from infrastructure you control.**
 
@@ -39,8 +39,8 @@ We built the hardest version of this to prove it generalizes: a live AI phone re
 Every single reply Nova gives comes with:
 
 1. **A spoken response** — short, warm, trying to move the caller toward booking.
-2. **Nova's reasoning trace** — the model's self-reported deliberation, exposed in an expandable panel. Not synthesized, not summarized by us — the literal `reasoning` field NVIDIA Nemotron returns, logged as an observation rather than claimed as proof of causation.
-3. **A live, real cost receipt** — computed from actual `usage.prompt_tokens` / `usage.completion_tokens` returned by the API, multiplied by Nebius Token Factory's published per-token rates, shown running total against what the same call duration would cost on ElevenLabs Agents' hosting fee alone (voice + orchestration, before you even add an LLM).
+2. **Nova's reasoning trace** — the model's self-reported deliberation, exposed in an expandable panel. Not synthesized, not summarized by us — the `reasoning` field NVIDIA Nemotron returns, logged as an observation rather than claimed as proof of causation.
+3. **A live, real cost receipt** — computed from actual `usage.prompt_tokens` / `usage.completion_tokens` returned by the API, multiplied by Nebius Token Factory's published per-token rates, shown running total against what the same call duration would cost on ElevenLabs Agents' hosting fee alone (voice + orchestration, before you even add an LLM). This is a deliberately partial comparison, not a total-cost-of-ownership figure: ElevenLabs' fee excludes the LLM behind their agent, and Nova's number excludes voice (STT/TTS) cost, since this demo uses the free browser Web Speech API instead of a paid voice service. What it does show honestly: the inference component alone, on an open model via Nebius, costs fractions of a cent per exchange.
 4. **An independently enforced policy** — a server-side check, outside the model entirely, that blocks any reply containing an invented price or address (this demo never supplies either as context, so any such claim is by construction hallucinated). If Nova tries to state one anyway, the guardrail catches it, logs the violation with the blocked text as evidence, and substitutes a safe fallback — the model has no say in whether the violation reaches the caller.
 5. **A Reality Gap check on the booking flow** — a separate mechanism that compares Nova's claim of success against a simulated calendar tool's actual ground-truth result, catching the specific case where Nova confidently confirms a booking that never went through. See below for the real discovered failure rate.
 
@@ -123,7 +123,7 @@ public/index.html    — frontend: mic capture, voice playback, reasoning panel,
 
 - Swap browser Web Speech API for server-side ASR/TTS (NVIDIA Riva, also on Nebius Token Factory) for real phone-line deployment via Telnyx/Twilio
 - Persist every reasoning trace + cost receipt to a database as a real compliance audit log, queryable per call
-- Extend the same pattern to non-voice agent verticals (insurance intake, hiring screeners, healthcare triage) where Article 13 exposure is highest
+- Extend the same pattern to non-voice agent verticals (insurance intake, hiring screeners, healthcare triage) where high-risk-system transparency obligations are most likely to apply
 
 ## Fail-closed verification and self-test
 
@@ -154,8 +154,8 @@ Observability tools and agent-eval frameworks already exist. What's specific her
 - Web Speech API STT/TTS works best in Chrome/Edge.
 - No live phone-line integration in this build — browser mic/speaker stands in for the call to keep the demo buildable in the hackathon window; see "What's next."
 
-## Sources
+## Sources, and their limits
 
-- Agentforce black-box incident and Vapi/Bland/Retell production pain points: public builder discussion threads, r/salesforce and voice-agent engineering communities, 2026.
-- AI agents market size ($10.91B 2026 → $50.31B 2030): industry market research aggregated 2026.
-- EU AI Act Article 11/13 interpretability requirements: EU AI Act implementation timeline, transparency obligations binding August 2026, high-risk obligations enforcement December 2027.
+- **Agentforce incident**: as described by an engineer in public builder discussion (r/salesforce and voice-agent engineering communities, 2026) — a first-hand account, not an official Salesforce incident report or postmortem. We treat it as illustrative of a known failure category, not a verified, citable case study.
+- **AI agents market size and enterprise-adoption figures** ($10.91B 2026 → $50.31B 2030; ~51% of enterprises running agents in production): aggregated third-party market-research estimates circulating in 2026 industry coverage, not a survey we ran or a single primary source we can point to directly. Treat as directional, not precise.
+- **EU AI Act**: Article 11 (technical documentation), Article 12 (record-keeping/logging), Article 13 (transparency and information obligations for deployers of high-risk systems). Transparency-disclosure rules (e.g. chatbot labeling) are binding from 2 August 2026. High-risk-system obligations apply later, under the current consolidated timeline: 2 December 2027 for Annex III systems, 2 August 2028 for Annex I product-related systems. This is a summary for context, not legal advice — verify against the current official text before relying on it for compliance decisions.
