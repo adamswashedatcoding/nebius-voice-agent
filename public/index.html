@@ -130,13 +130,17 @@
     color: var(--muted);
     font-size: 14px;
   }
-  #adversarialBtn {
+  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn {
     padding: 14px 20px;
     border-radius: 100px;
     background: transparent;
     border: 1px solid rgba(255, 85, 102, 0.4);
     color: #ff8a97;
     font-size: 13px;
+  }
+  #bookNormalBtn {
+    border-color: rgba(53, 208, 138, 0.4);
+    color: #7ee0ab;
   }
   .adversarial-panel {
     background: var(--panel);
@@ -302,6 +306,22 @@
     <div class="adversarial-panel" id="adversarialPanel" style="display:none;">
       <div class="adversarial-summary" id="adversarialSummary"></div>
       <div class="adversarial-results" id="adversarialResults"></div>
+    </div>
+
+    <div class="controls">
+      <button id="bookNormalBtn">Attempt booking (normal)</button>
+      <button id="bookTimeoutBtn">Attempt booking (simulate calendar timeout)</button>
+      <button id="discoveryBtn">Run 10 automated timeout trials (discover failure rate)</button>
+    </div>
+
+    <div class="adversarial-panel" id="realityGapPanel" style="display:none;">
+      <div class="adversarial-summary" id="realityGapSummary"></div>
+      <div class="adversarial-results" id="realityGapResults"></div>
+    </div>
+
+    <div class="adversarial-panel" id="discoveryPanel" style="display:none;">
+      <div class="adversarial-summary" id="discoverySummary"></div>
+      <div class="adversarial-results" id="discoveryResults"></div>
     </div>
 
     <div class="transcript" id="transcript"></div>
@@ -495,6 +515,104 @@ adversarialBtn.addEventListener("click", async () => {
   } finally {
     adversarialBtn.disabled = false;
   }
+});
+
+const bookNormalBtn = document.getElementById("bookNormalBtn");
+const bookTimeoutBtn = document.getElementById("bookTimeoutBtn");
+const discoveryBtn = document.getElementById("discoveryBtn");
+const realityGapPanel = document.getElementById("realityGapPanel");
+const realityGapSummary = document.getElementById("realityGapSummary");
+const realityGapResults = document.getElementById("realityGapResults");
+const discoveryPanel = document.getElementById("discoveryPanel");
+const discoverySummary = document.getElementById("discoverySummary");
+const discoveryResults = document.getElementById("discoveryResults");
+
+async function attemptBooking(simulateTimeout) {
+  realityGapPanel.style.display = "block";
+  realityGapSummary.textContent = simulateTimeout
+    ? "Attempting booking with a simulated calendar timeout..."
+    : "Attempting a normal booking...";
+  realityGapResults.innerHTML = "";
+  bookNormalBtn.disabled = true;
+  bookTimeoutBtn.disabled = true;
+
+  try {
+    const res = await fetch("/api/attempt-booking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ simulateTimeout }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      realityGapSummary.textContent = "Error: " + (data.error || "unknown");
+      return;
+    }
+
+    realityGapSummary.textContent = data.realityGapCaught
+      ? "REALITY GAP CAUGHT — Nova claimed success on a failed booking. Independent check corrected it."
+      : "No mismatch — Nova's claim matched the actual booking outcome.";
+
+    const div = document.createElement("div");
+    div.className = "adv-item";
+    div.innerHTML =
+      '<div class="adv-prompt">Tool result (ground truth): ' + escapeHtml(data.toolResult.status) + " — " + escapeHtml(data.toolResult.detail) + '</div>' +
+      '<div class="adv-reply">Nova said: "' + escapeHtml(data.modelReply) + '"</div>' +
+      (data.realityGapCaught
+        ? '<div class="adv-outcome-missed">Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
+        : '');
+    realityGapResults.appendChild(div);
+  } catch (err) {
+    realityGapSummary.textContent = "Request failed — is the server running?";
+  } finally {
+    bookNormalBtn.disabled = false;
+    bookTimeoutBtn.disabled = false;
+  }
+}
+
+bookNormalBtn.addEventListener("click", () => attemptBooking(false));
+bookTimeoutBtn.addEventListener("click", () => attemptBooking(true));
+
+discoveryBtn.addEventListener("click", async () => {
+  discoveryPanel.style.display = "block";
+  discoverySummary.textContent = "Running 10 automated timeout trials...";
+  discoveryResults.innerHTML = "";
+  discoveryBtn.disabled = true;
+
+  let caughtCount = 0;
+  const trialSummaries = [];
+
+  for (let i = 1; i <= 10; i++) {
+    try {
+      const res = await fetch("/api/attempt-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ simulateTimeout: true }),
+      });
+      const data = await res.json();
+      if (data.realityGapCaught) caughtCount++;
+      trialSummaries.push({ n: i, caught: data.realityGapCaught, reply: data.modelReply });
+      discoverySummary.textContent = "Running trial " + i + " / 10... (" + caughtCount + " false-success claims found so far)";
+    } catch (err) {
+      trialSummaries.push({ n: i, caught: null, reply: "(request failed)" });
+    }
+  }
+
+  discoverySummary.textContent =
+    "Discovered " + caughtCount + " / 10 timeout trials where Nova falsely claimed success — not scripted, each trial's wording is generated fresh.";
+
+  trialSummaries.forEach((t) => {
+    const div = document.createElement("div");
+    div.className = "adv-item";
+    const outcomeClass = t.caught ? "adv-outcome-missed" : "adv-outcome-caught";
+    const outcomeText = t.caught ? "FALSE SUCCESS CLAIM" : "correctly admitted failure";
+    div.innerHTML =
+      '<div class="adv-prompt">Trial ' + t.n + '</div>' +
+      '<div class="' + outcomeClass + '">' + outcomeText + '</div>' +
+      '<div class="adv-reply">"' + escapeHtml(t.reply) + '"</div>';
+    discoveryResults.appendChild(div);
+  });
+
+  discoveryBtn.disabled = false;
 });
 
 resetBtn.addEventListener("click", () => {
