@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Glassbox — Explainable AI Agents</title>
+<title>Glassbox, Explainable AI Agents</title>
 <style>
   :root {
     --bg: #05070d;
@@ -393,7 +393,7 @@
   <div class="wrap">
     <header>
       <h1>Glassbox</h1>
-      <p>Nova is the proof-of-concept agent. Every reply ships with its real reasoning trace and a live cost receipt — and every mechanism below is tested against its own failure modes, not just Nova's.</p>
+      <p>Nova is the proof-of-concept agent. Every reply ships with its real reasoning trace and a live cost receipt, and every mechanism below is tested against its own failure modes, not just Nova's.</p>
       <div class="badges">
         <span class="badge">NVIDIA Nemotron</span>
         <span class="badge">Nebius Token Factory</span>
@@ -442,7 +442,7 @@
         <span class="section-num">02</span>
         <span class="section-title">Guardrail</span>
       </div>
-      <p class="section-desc">An independent, outside-the-model check that blocks any invented price or address — then a 6-prompt adversarial battery that reports its real catch rate, misses included.</p>
+      <p class="section-desc">An independent, outside-the-model check that blocks any invented price or address. Then a 6-prompt adversarial battery reports its real catch rate, misses included.</p>
       <div class="section-body">
         <div class="controls">
           <button class="btn-test btn-danger" id="adversarialBtn">Run adversarial test (discover + verify defense)</button>
@@ -459,7 +459,7 @@
         <span class="section-num">03</span>
         <span class="section-title">Reality Gap</span>
       </div>
-      <p class="section-desc">Does Nova's claim match what actually happened? A simulated calendar tool can succeed, time out, or have its own verifier fail — and the system must never silently call an unverified claim "clean."</p>
+      <p class="section-desc">Does Nova's claim match what actually happened? A simulated calendar tool can succeed, time out or have its own verifier fail, and the system must never silently call an unverified claim "clean."</p>
       <div class="section-body">
         <div class="controls">
           <button class="btn-test btn-ok" id="bookNormalBtn">Attempt booking (normal)</button>
@@ -483,7 +483,7 @@
         <span class="section-num">04</span>
         <span class="section-title">Controlled Experiment</span>
       </div>
-      <p class="section-desc">Neutral framing vs. conversational pressure, same ambiguous tool signal both columns — real denominators, not matched/paired trials.</p>
+      <p class="section-desc">Neutral framing vs. conversational pressure, same ambiguous tool signal both columns. Real denominators, not matched/paired trials.</p>
       <div class="section-body">
         <div class="controls">
           <button class="btn-test" id="pressureExpBtn">Run paired experiment (6 trials each)</button>
@@ -528,7 +528,7 @@
       </div>
     </div>
 
-    <footer>Open weights, not a vendor black box — reasoning and cost are real API data, not UI dressing.</footer>
+    <footer>Open weights, not a vendor black box. Reasoning and cost are real API data, not UI dressing.</footer>
   </div>
 
 <script>
@@ -659,7 +659,7 @@ if ("speechSynthesis" in window) {
 
 function speak(text) {
   if (!("speechSynthesis" in window)) {
-    setStatus("Ready — tap Start Call");
+    setStatus("Ready, tap Start Call");
     return;
   }
   const utter = new SpeechSynthesisUtterance(text);
@@ -673,7 +673,7 @@ function speak(text) {
   };
   utter.onend = () => {
     orb.classList.remove("speaking");
-    setStatus("Ready — tap the mic to reply");
+    setStatus("Ready, tap the mic to reply");
   };
   window.speechSynthesis.speak(utter);
 }
@@ -691,7 +691,7 @@ function initRecognition() {
   rec.maxAlternatives = 1;
 
   rec.onaudiostart = () => {
-    setStatus("Mic is live — go ahead and speak...");
+    setStatus("Mic is live, go ahead and speak...");
   };
   rec.onspeechstart = () => {
     setStatus("Hearing you...");
@@ -706,7 +706,7 @@ function initRecognition() {
     }
   };
   rec.onnomatch = () => {
-    setStatus("Heard something but couldn't make out words — try again, closer to the mic.");
+    setStatus("Heard something but couldn't make out words. Try again, closer to the mic.");
   };
   rec.onend = () => {
     listening = false;
@@ -716,9 +716,9 @@ function initRecognition() {
   };
   rec.onerror = (event) => {
     if (event.error === "no-speech") {
-      setStatus("No speech detected — tap Start Call again and speak right away, the listening window is short.");
+      setStatus("No speech detected. Tap Start Call again and speak right away, the listening window is short.");
     } else if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-      setStatus("Microphone permission blocked — check your browser's site settings for this page.");
+      setStatus("Microphone permission blocked. Check your browser's site settings for this page.");
     } else {
       setStatus("Mic error: " + event.error);
     }
@@ -772,7 +772,7 @@ adversarialBtn.addEventListener("click", () => withLoading(adversarialBtn, "Runn
       const div = document.createElement("div");
       div.className = "adv-item";
       const outcomeClass = r.caught ? "adv-outcome-caught" : "adv-outcome-missed";
-      const outcomeText = r.caught ? "BLOCKED — " + r.rule : "NOT CAUGHT";
+      const outcomeText = r.caught ? "BLOCKED, " + r.rule : "NOT CAUGHT";
       div.innerHTML =
         '<div class="adv-prompt">Attack: "' + escapeHtml(r.prompt) + '"</div>' +
         '<div class="' + outcomeClass + '">' + outcomeText + '</div>' +
@@ -780,7 +780,7 @@ adversarialBtn.addEventListener("click", () => withLoading(adversarialBtn, "Runn
       adversarialResults.appendChild(div);
     });
   } catch (err) {
-    adversarialSummary.textContent = "Request failed — is the server running?";
+    adversarialSummary.textContent = "Request failed. Is the server running?";
   }
 }));
 
@@ -821,23 +821,23 @@ async function attemptBooking(simulateTimeout, simulateVerifierFailure, triggerB
     }
 
     if (data.verificationStatus === "VERIFICATION_FAILED") {
-      realityGapSummary.textContent = "VERIFICATION_FAILED — the checker itself couldn't run. System did NOT default to 'verified clean.'";
+      realityGapSummary.textContent = "VERIFICATION_FAILED. The checker itself couldn't run. System did NOT default to 'verified clean.'";
     } else {
       realityGapSummary.textContent = data.realityGapCaught
-        ? "REALITY GAP CAUGHT — Nova claimed success on a failed booking. Independent check corrected it."
-        : "No mismatch — Nova's claim matched the actual booking outcome.";
+        ? "REALITY GAP CAUGHT. Nova claimed success on a failed booking. Independent check corrected it."
+        : "No mismatch. Nova's claim matched the actual booking outcome.";
     }
 
     const div = document.createElement("div");
     div.className = "adv-item";
     const interventionLabel = data.verificationStatus === "VERIFICATION_FAILED"
-      ? '<div class="gap-box gap-box-unverified"><div class="gap-box-label">System response — UNVERIFIED (fail-closed)</div>Verification could not run, so the claim above is NOT marked clean. Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
+      ? '<div class="gap-box gap-box-unverified"><div class="gap-box-label">System response, UNVERIFIED (fail-closed)</div>Verification could not run, so the claim above is NOT marked clean. Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
       : data.realityGapCaught
-      ? '<div class="gap-box gap-box-blocked"><div class="gap-box-label">System response — BLOCKED</div>The false claim above was intercepted before the caller heard it. Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
-      : '<div class="gap-box gap-box-ok"><div class="gap-box-label">System response</div>No mismatch detected — nothing to block, Nova\'s claim matched the ground truth.</div>';
+      ? '<div class="gap-box gap-box-blocked"><div class="gap-box-label">System response, BLOCKED</div>The false claim above was intercepted before the caller heard it. Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
+      : '<div class="gap-box gap-box-ok"><div class="gap-box-label">System response</div>No mismatch detected, nothing to block, Nova\'s claim matched the ground truth.</div>';
     div.innerHTML =
       '<div class="gap-box gap-box-claim"><div class="gap-box-label">Agent claim</div>"' + escapeHtml(data.modelReply) + '"</div>' +
-      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Ground truth (tool result)</div>' + escapeHtml(data.toolResult.status) + " — " + escapeHtml(data.toolResult.detail) + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Ground truth (tool result)</div>' + escapeHtml(data.toolResult.status) + ", " + escapeHtml(data.toolResult.detail) + '</div>' +
       interventionLabel +
       '<button class="reproduceBtn" data-trial-id="' + data.id + '" style="margin-top:8px;font-size:11px;padding:8px 14px;">Reproduce this trial</button>' +
       '<div class="reproduce-output"></div>';
@@ -859,14 +859,14 @@ async function attemptBooking(simulateTimeout, simulateVerifierFailure, triggerB
           return;
         }
         outputEl.innerHTML =
-          '<div class="gap-box ' + (repData.sameOutcome ? "gap-box-ok" : "gap-box-blocked") + '"><div class="gap-box-label">Reproduction — ' +
+          '<div class="gap-box ' + (repData.sameOutcome ? "gap-box-ok" : "gap-box-blocked") + '"><div class="gap-box-label">Reproduction, ' +
           (repData.sameOutcome ? "same outcome" : "different outcome") + '</div>"' + escapeHtml(repData.reproduction.modelReply) + '"<br><span style="color:var(--muted);font-size:11px;">' + escapeHtml(repData.note) + '</span></div>';
       } catch (err) {
         outputEl.textContent = "Reproduction request failed.";
       }
     });
   } catch (err) {
-    realityGapSummary.textContent = "Request failed — is the server running?";
+    realityGapSummary.textContent = "Request failed. Is the server running?";
   } finally {
     otherBtns.forEach((b) => (b.disabled = false));
     triggerBtn.disabled = false;
@@ -907,7 +907,7 @@ discoveryBtn.addEventListener("click", async () => {
   }
 
   discoverySummary.textContent =
-    "Discovered " + caughtCount + " / 10 timeout trials where Nova falsely claimed success — not scripted, each trial's wording is generated fresh.";
+    "Discovered " + caughtCount + " / 10 timeout trials where Nova falsely claimed success. Not scripted, each trial's wording is generated fresh.";
 
   trialSummaries.forEach((t) => {
     const div = document.createElement("div");
@@ -932,7 +932,7 @@ const pressureExpResults = document.getElementById("pressureExpResults");
 
 function renderConditionColumn(title, condition) {
   const col = document.createElement("div");
-  let html = '<div class="pressure-col-title">' + title + " — " + condition.caught + " / " + condition.total + ' false claims</div>';
+  let html = '<div class="pressure-col-title">' + title + ", " + condition.caught + " / " + condition.total + ' false claims</div>';
   condition.results.forEach((r, i) => {
     const outcomeClass = r.realityGapCaught ? "adv-outcome-missed" : "adv-outcome-caught";
     const outcomeText = r.realityGapCaught ? "FALSE CLAIM" : "honest";
@@ -961,13 +961,13 @@ pressureExpBtn.addEventListener("click", () => withLoading(pressureExpBtn, "Runn
       return;
     }
     pressureExpSummary.textContent =
-      "Same ambiguous tool signal both columns — only the framing differs. Neutral: " + data.neutral.caught + "/" + data.neutral.total +
+      "Same ambiguous tool signal both columns, only the framing differs. Neutral: " + data.neutral.caught + "/" + data.neutral.total +
       " · Pressure: " + data.pressure.caught + "/" + data.pressure.total +
       ". Two separate conditions run with the same trial count, not matched/paired trials.";
     pressureExpResults.appendChild(renderConditionColumn("Neutral framing", data.neutral));
     pressureExpResults.appendChild(renderConditionColumn("Pressure framing", data.pressure));
   } catch (err) {
-    pressureExpSummary.textContent = "Request failed — is the server running?";
+    pressureExpSummary.textContent = "Request failed. Is the server running?";
   }
 }));
 
@@ -988,7 +988,7 @@ evidenceBtn.addEventListener("click", () => withLoading(evidenceBtn, "Loading...
     evidenceDownload.href = URL.createObjectURL(blob);
     evidenceDownload.style.display = "inline-block";
   } catch (err) {
-    evidenceJson.textContent = "Request failed — is the server running?";
+    evidenceJson.textContent = "Request failed. Is the server running?";
   }
 }));
 
@@ -1004,15 +1004,15 @@ confoundBtn.addEventListener("click", () => withLoading(confoundBtn, "Checking..
   try {
     const res = await fetch("/api/confound-check");
     const data = await res.json();
-    confoundSummary.textContent = "Confound Detector — historical mistake vs. current live data";
+    confoundSummary.textContent = "Confound Detector, historical mistake vs. current live data";
 
     const hist = data.historicalCaseStudy;
     const histDiv = document.createElement("div");
     histDiv.className = "adv-item";
     histDiv.innerHTML =
       '<div class="adv-prompt">Historical case study: ' + escapeHtml(hist.comparisonAttempted) + '</div>' +
-      '<div class="gap-box gap-box-truth"><div class="gap-box-label">' + escapeHtml(hist.groupA.label) + '</div>"' + escapeHtml(hist.groupA.toolMessageUsed) + '" — ' + hist.groupA.falseSuccessClaims + '/' + hist.groupA.trials + '</div>' +
-      '<div class="gap-box gap-box-truth"><div class="gap-box-label">' + escapeHtml(hist.groupB.label) + '</div>"' + escapeHtml(hist.groupB.toolMessageUsed) + '" — ' + hist.groupB.falseSuccessClaims + '/' + hist.groupB.trials + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">' + escapeHtml(hist.groupA.label) + '</div>"' + escapeHtml(hist.groupA.toolMessageUsed) + '", ' + hist.groupA.falseSuccessClaims + '/' + hist.groupA.trials + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">' + escapeHtml(hist.groupB.label) + '</div>"' + escapeHtml(hist.groupB.toolMessageUsed) + '", ' + hist.groupB.falseSuccessClaims + '/' + hist.groupB.trials + '</div>' +
       '<div class="gap-box gap-box-blocked"><div class="gap-box-label">Confound detected</div>' + escapeHtml(hist.detail) + '</div>';
     confoundResults.appendChild(histDiv);
 
@@ -1025,7 +1025,7 @@ confoundBtn.addEventListener("click", () => withLoading(confoundBtn, "Checking..
       '<div class="gap-box ' + liveBoxClass + '"><div class="gap-box-label">Result</div>' + escapeHtml(live.detail) + '</div>';
     confoundResults.appendChild(liveDiv);
   } catch (err) {
-    confoundSummary.textContent = "Request failed — is the server running?";
+    confoundSummary.textContent = "Request failed. Is the server running?";
   }
 }));
 
@@ -1039,7 +1039,7 @@ function fmtRate(r) {
   const pct = (r.rate * 100).toFixed(0);
   const lo = (r.ciLow * 100).toFixed(0);
   const hi = (r.ciHigh * 100).toFixed(0);
-  const weak = r.weakEvidence ? " — SMALL SAMPLE, weak evidence" : "";
+  const weak = r.weakEvidence ? ", SMALL SAMPLE, weak evidence" : "";
   return pct + "% (95% CI " + lo + "–" + hi + "%, n=" + r.total + ")" + weak;
 }
 
@@ -1050,14 +1050,14 @@ scoreboardBtn.addEventListener("click", () => withLoading(scoreboardBtn, "Loadin
   try {
     const res = await fetch("/api/scoreboard");
     const data = await res.json();
-    scoreboardSummary.textContent = "Honest Scoreboard — generated " + new Date(data.generatedAt).toLocaleTimeString();
+    scoreboardSummary.textContent = "Honest Scoreboard, generated " + new Date(data.generatedAt).toLocaleTimeString();
 
     const div = document.createElement("div");
     div.className = "adv-item";
     div.innerHTML =
       '<div class="gap-box gap-box-truth"><div class="gap-box-label">Guardrail (price/address) catch rate</div>' + fmtRate(data.guardrail) + '<br><span style="color:var(--muted);font-size:11px;">' + escapeHtml(data.guardrail.falsePositivesOnLegitimateScenarios) + '</span></div>' +
-      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Reality Gap — neutral condition</div>' + fmtRate(data.realityGap.neutralCondition) + '</div>' +
-      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Reality Gap — pressure condition</div>' + fmtRate(data.realityGap.pressureCondition) + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Reality Gap, neutral condition</div>' + fmtRate(data.realityGap.neutralCondition) + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Reality Gap, pressure condition</div>' + fmtRate(data.realityGap.pressureCondition) + '</div>' +
       '<div class="gap-box gap-box-claim"><div class="gap-box-label">Total measured cost this session</div>$' + data.cost.totalCostUsd.toFixed(6) + ' across ' + data.cost.totalCalls + ' calls, ' + data.cost.totalTokens + ' tokens</div>';
     scoreboardResults.appendChild(div);
 
@@ -1067,7 +1067,7 @@ scoreboardBtn.addEventListener("click", () => withLoading(scoreboardBtn, "Loadin
       data.knownLimitations.map((l) => '<li>' + escapeHtml(l) + '</li>').join('') + '</ul>';
     scoreboardResults.appendChild(limDiv);
   } catch (err) {
-    scoreboardSummary.textContent = "Request failed — is the server running?";
+    scoreboardSummary.textContent = "Request failed. Is the server running?";
   }
 }));
 
@@ -1083,7 +1083,7 @@ selfTestBtn.addEventListener("click", () => withLoading(selfTestBtn, "Running...
   try {
     const res = await fetch("/api/self-test");
     const data = await res.json();
-    selfTestSummary.textContent = data.passed + " / " + data.total + " deterministic checks passed" + (data.allPassed ? "" : " — SOME FAILED, see below");
+    selfTestSummary.textContent = data.passed + " / " + data.total + " deterministic checks passed" + (data.allPassed ? "" : ", SOME FAILED, see below");
 
     data.tests.forEach((t) => {
       const div = document.createElement("div");
@@ -1091,12 +1091,12 @@ selfTestBtn.addEventListener("click", () => withLoading(selfTestBtn, "Running...
       const outcomeClass = t.passed ? "adv-outcome-caught" : "adv-outcome-missed";
       div.innerHTML =
         '<div class="adv-prompt">' + escapeHtml(t.name) + '</div>' +
-        '<div class="' + outcomeClass + '">' + (t.passed ? "PASS" : "FAIL") + ' — expected: ' + escapeHtml(t.expected) + '</div>' +
+        '<div class="' + outcomeClass + '">' + (t.passed ? "PASS" : "FAIL") + ', expected: ' + escapeHtml(t.expected) + '</div>' +
         '<div class="adv-reply">Actual: ' + escapeHtml(t.actual) + '</div>';
       selfTestResults.appendChild(div);
     });
   } catch (err) {
-    selfTestSummary.textContent = "Request failed — is the server running?";
+    selfTestSummary.textContent = "Request failed. Is the server running?";
   }
 }));
 
@@ -1116,7 +1116,7 @@ resetBtn.addEventListener("click", () => {
     const res = await fetch("/api/health");
     const data = await res.json();
     if (!data.keyConfigured) {
-      setStatus("Server has no NEBIUS_API_KEY set — add it to .env and restart.");
+      setStatus("Server has no NEBIUS_API_KEY set. Add it to .env and restart.");
     }
   } catch (e) {
     setStatus("Backend not reachable yet.");
