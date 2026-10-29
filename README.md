@@ -125,6 +125,29 @@ public/index.html    — frontend: mic capture, voice playback, reasoning panel,
 - Persist every reasoning trace + cost receipt to a database as a real compliance audit log, queryable per call
 - Extend the same pattern to non-voice agent verticals (insurance intake, hiring screeners, healthcare triage) where Article 13 exposure is highest
 
+## Fail-closed verification and self-test
+
+Catching a false claim is not the same as *preventing* harm from it — the checker has to work even when the checker itself can't run. `/api/attempt-booking` accepts `simulateVerifierFailure`, which forces the verification step to throw (simulating that service being unavailable, not just the underlying calendar tool). The result is `verificationStatus: "VERIFICATION_FAILED"` and `realityGapCaught: null` — explicitly *unknown*, never silently collapsed into `false` (which would look identical to "nothing wrong here"). The caller gets an honest "I can't confirm that right now" instead of the model's unverified claim passing through.
+
+`/api/self-test` runs five deterministic checks against Glassbox's own classification logic — no live model call, no stochasticity, instant: a false-success claim should be detected; a differing tool signal between compared groups should trigger a confound warning; a failed verifier should report `VERIFICATION_FAILED`, not `VERIFIED`; an invented price should trigger the guardrail; a real success should never be falsely flagged. All five currently pass. This doesn't prove the system is bug-free — it proves the measurement system has been tested against its own known failure modes, which is the minimum bar for trusting any of the numbers above.
+
+## What this is, and isn't, claiming
+
+Observability tools and agent-eval frameworks already exist. What's specific here: (1) a model that exposes real inference-time reasoning as a first-class API field rather than a prompt-engineered summary, because the weights are open; (2) an outcome verifier that checks agent *claims* against independently-tracked ground truth, not just text patterns; (3) a controlled, corrected experiment comparing conditions, including catching and fixing our own confound; and (4) explicit evidence — Evidence Receipt, Confound Detector, Scoreboard — a judge can inspect rather than trust. The combination of all four, demonstrated on live inference rather than mocked, is the actual claim. We have not done a literature search broad enough to claim this combination is unprecedented, and we're not claiming that.
+
+## Judge-proof checklist
+
+- [x] Fresh install works from this README (`npm install && cp .env.example .env` + key, `npm start`)
+- [x] Live Nemotron inference works (verified via direct API calls during build, not mocked)
+- [x] Every displayed metric comes from real execution data (token usage, violation log, booking log — nothing hand-typed)
+- [x] The corrected pressure-vs-neutral experiment is the only version presented as the valid finding; the original confounded comparison is kept only as a labeled historical mistake
+- [x] Evidence Receipt fields map directly to the underlying logs (`violationLog`, `bookingLog`, `usageLedger`)
+- [x] A failed verifier cannot produce a false "verified" status (`realityGapCaught: null`, not `false`)
+- [x] Guardrail misses are shown, not hidden (adversarial suite reports real catch rate, not a cherry-picked run)
+- [ ] Backup recording of the demo, in case the network or Nebius API has issues live
+- [ ] Opening demonstration under 90 seconds — needs a rehearsed run, not just capability
+- [x] README separates what's demonstrated (everything above) from what's future work (phone-line integration, persistent storage, non-voice verticals)
+
 ## Notes
 
 - Model slug in `.env.example` is the exact verified slug from Nebius Token Factory's live model catalog as of this build — if Nebius renames or deprecates it, check `GET /v1/models` on your account and update `NEBIUS_MODEL`.
