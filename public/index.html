@@ -552,6 +552,20 @@ function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Generic loading-state wrapper so judges watching the screen can always see
+// a button is working, not stalled, during a live API call.
+async function withLoading(btn, loadingLabel, fn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "⏳ " + loadingLabel;
+  try {
+    return await fn();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
 function addBubble(role, text, reasoning) {
   const div = document.createElement("div");
   div.className = "bubble " + (role === "user" ? "user" : "nova");
@@ -609,13 +623,50 @@ async function sendToNova(userText) {
   }
 }
 
+let selectedVoice = null;
+
+function pickBestVoice() {
+  if (!("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  const english = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith("en"));
+  const pool = english.length ? english : voices;
+
+  // Preference order: neural/natural network voices > Google's higher-quality
+  // voices > any English voice > whatever the browser gives us.
+  const natural = pool.find((v) => /natural|neural/i.test(v.name));
+  if (natural) return natural;
+
+  const google = pool.find((v) => /google/i.test(v.name));
+  if (google) return google;
+
+  const preferredFemale = pool.find((v) => /female|zira|samantha|susan|aria/i.test(v.name));
+  if (preferredFemale) return preferredFemale;
+
+  return pool[0];
+}
+
+function loadVoices() {
+  const voice = pickBestVoice();
+  if (voice) selectedVoice = voice;
+}
+
+if ("speechSynthesis" in window) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
 function speak(text) {
   if (!("speechSynthesis" in window)) {
     setStatus("Ready — tap Start Call");
     return;
   }
   const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 1.02;
+  if (selectedVoice) utter.voice = selectedVoice;
+  utter.rate = 1.0;
+  utter.pitch = 1.0;
+  utter.volume = 1.0;
   utter.onstart = () => {
     orb.classList.add("speaking");
     setStatus("Nova is speaking...");
@@ -636,12 +687,26 @@ function initRecognition() {
   }
   const rec = new SpeechRecognition();
   rec.lang = "en-US";
-  rec.interimResults = false;
+  rec.interimResults = true;
   rec.maxAlternatives = 1;
 
+  rec.onaudiostart = () => {
+    setStatus("Mic is live — go ahead and speak...");
+  };
+  rec.onspeechstart = () => {
+    setStatus("Hearing you...");
+  };
   rec.onresult = (event) => {
-    const text = event.results[0][0].transcript;
-    sendToNova(text);
+    const result = event.results[0];
+    const text = result[0].transcript;
+    if (result.isFinal) {
+      sendToNova(text);
+    } else {
+      setStatus('Hearing: "' + text + '"');
+    }
+  };
+  rec.onnomatch = () => {
+    setStatus("Heard something but couldn't make out words — try again, closer to the mic.");
   };
   rec.onend = () => {
     listening = false;
@@ -650,7 +715,13 @@ function initRecognition() {
     orb.classList.remove("listening");
   };
   rec.onerror = (event) => {
-    setStatus("Mic error: " + event.error);
+    if (event.error === "no-speech") {
+      setStatus("No speech detected — tap Start Call again and speak right away, the listening window is short.");
+    } else if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      setStatus("Microphone permission blocked — check your browser's site settings for this page.");
+    } else {
+      setStatus("Mic error: " + event.error);
+    }
     listening = false;
     micBtn.classList.remove("active");
     micBtn.textContent = "Start Call";
@@ -681,11 +752,10 @@ const adversarialPanel = document.getElementById("adversarialPanel");
 const adversarialSummary = document.getElementById("adversarialSummary");
 const adversarialResults = document.getElementById("adversarialResults");
 
-adversarialBtn.addEventListener("click", async () => {
+adversarialBtn.addEventListener("click", () => withLoading(adversarialBtn, "Running 6 attacks...", async () => {
   adversarialPanel.style.display = "block";
   adversarialSummary.textContent = "Running 6 adversarial prompts against Nova...";
   adversarialResults.innerHTML = "";
-  adversarialBtn.disabled = true;
 
   try {
     const res = await fetch("/api/adversarial-suite", { method: "POST" });
@@ -711,10 +781,8 @@ adversarialBtn.addEventListener("click", async () => {
     });
   } catch (err) {
     adversarialSummary.textContent = "Request failed — is the server running?";
-  } finally {
-    adversarialBtn.disabled = false;
   }
-});
+}));
 
 const bookNormalBtn = document.getElementById("bookNormalBtn");
 const bookTimeoutBtn = document.getElementById("bookTimeoutBtn");
@@ -726,7 +794,7 @@ const discoveryPanel = document.getElementById("discoveryPanel");
 const discoverySummary = document.getElementById("discoverySummary");
 const discoveryResults = document.getElementById("discoveryResults");
 
-async function attemptBooking(simulateTimeout, simulateVerifierFailure) {
+async function attemptBooking(simulateTimeout, simulateVerifierFailure, triggerBtn) {
   realityGapPanel.style.display = "block";
   realityGapSummary.textContent = simulateVerifierFailure
     ? "Attempting booking with the verifier itself forced to fail..."
@@ -734,9 +802,11 @@ async function attemptBooking(simulateTimeout, simulateVerifierFailure) {
     ? "Attempting booking with a simulated calendar timeout..."
     : "Attempting a normal booking...";
   realityGapResults.innerHTML = "";
-  bookNormalBtn.disabled = true;
-  bookTimeoutBtn.disabled = true;
-  verifierFailBtn.disabled = true;
+  const otherBtns = [bookNormalBtn, bookTimeoutBtn, verifierFailBtn].filter((b) => b !== triggerBtn);
+  otherBtns.forEach((b) => (b.disabled = true));
+  const originalLabel = triggerBtn.textContent;
+  triggerBtn.disabled = true;
+  triggerBtn.textContent = "⏳ Running...";
 
   try {
     const res = await fetch("/api/attempt-booking", {
@@ -798,22 +868,24 @@ async function attemptBooking(simulateTimeout, simulateVerifierFailure) {
   } catch (err) {
     realityGapSummary.textContent = "Request failed — is the server running?";
   } finally {
-    bookNormalBtn.disabled = false;
-    bookTimeoutBtn.disabled = false;
-    verifierFailBtn.disabled = false;
+    otherBtns.forEach((b) => (b.disabled = false));
+    triggerBtn.disabled = false;
+    triggerBtn.textContent = originalLabel;
   }
 }
 
 const verifierFailBtn = document.getElementById("verifierFailBtn");
-bookNormalBtn.addEventListener("click", () => attemptBooking(false, false));
-bookTimeoutBtn.addEventListener("click", () => attemptBooking(true, false));
-verifierFailBtn.addEventListener("click", () => attemptBooking(true, true));
+bookNormalBtn.addEventListener("click", () => attemptBooking(false, false, bookNormalBtn));
+bookTimeoutBtn.addEventListener("click", () => attemptBooking(true, false, bookTimeoutBtn));
+verifierFailBtn.addEventListener("click", () => attemptBooking(true, true, verifierFailBtn));
 
 discoveryBtn.addEventListener("click", async () => {
   discoveryPanel.style.display = "block";
   discoverySummary.textContent = "Running 10 automated timeout trials...";
   discoveryResults.innerHTML = "";
+  const discoveryOriginalLabel = discoveryBtn.textContent;
   discoveryBtn.disabled = true;
+  discoveryBtn.textContent = "⏳ Running...";
 
   let caughtCount = 0;
   const trialSummaries = [];
@@ -850,6 +922,7 @@ discoveryBtn.addEventListener("click", async () => {
   });
 
   discoveryBtn.disabled = false;
+  discoveryBtn.textContent = discoveryOriginalLabel;
 });
 
 const pressureExpBtn = document.getElementById("pressureExpBtn");
@@ -871,11 +944,10 @@ function renderConditionColumn(title, condition) {
   return col;
 }
 
-pressureExpBtn.addEventListener("click", async () => {
+pressureExpBtn.addEventListener("click", () => withLoading(pressureExpBtn, "Running 12 trials...", async () => {
   pressureExpPanel.style.display = "block";
   pressureExpSummary.textContent = "Running 6 timeout trials under each condition (12 total)...";
   pressureExpResults.innerHTML = "";
-  pressureExpBtn.disabled = true;
 
   try {
     const res = await fetch("/api/pressure-experiment", {
@@ -896,17 +968,15 @@ pressureExpBtn.addEventListener("click", async () => {
     pressureExpResults.appendChild(renderConditionColumn("Pressure framing", data.pressure));
   } catch (err) {
     pressureExpSummary.textContent = "Request failed — is the server running?";
-  } finally {
-    pressureExpBtn.disabled = false;
   }
-});
+}));
 
 const evidenceBtn = document.getElementById("evidenceBtn");
 const evidencePanel = document.getElementById("evidencePanel");
 const evidenceJson = document.getElementById("evidenceJson");
 const evidenceDownload = document.getElementById("evidenceDownload");
 
-evidenceBtn.addEventListener("click", async () => {
+evidenceBtn.addEventListener("click", () => withLoading(evidenceBtn, "Loading...", async () => {
   evidencePanel.style.display = "block";
   evidenceJson.textContent = "Loading...";
   try {
@@ -920,14 +990,14 @@ evidenceBtn.addEventListener("click", async () => {
   } catch (err) {
     evidenceJson.textContent = "Request failed — is the server running?";
   }
-});
+}));
 
 const confoundBtn = document.getElementById("confoundBtn");
 const confoundPanel = document.getElementById("confoundPanel");
 const confoundSummary = document.getElementById("confoundSummary");
 const confoundResults = document.getElementById("confoundResults");
 
-confoundBtn.addEventListener("click", async () => {
+confoundBtn.addEventListener("click", () => withLoading(confoundBtn, "Checking...", async () => {
   confoundPanel.style.display = "block";
   confoundSummary.textContent = "Checking for confounds...";
   confoundResults.innerHTML = "";
@@ -957,7 +1027,7 @@ confoundBtn.addEventListener("click", async () => {
   } catch (err) {
     confoundSummary.textContent = "Request failed — is the server running?";
   }
-});
+}));
 
 const scoreboardBtn = document.getElementById("scoreboardBtn");
 const scoreboardPanel = document.getElementById("scoreboardPanel");
@@ -973,7 +1043,7 @@ function fmtRate(r) {
   return pct + "% (95% CI " + lo + "–" + hi + "%, n=" + r.total + ")" + weak;
 }
 
-scoreboardBtn.addEventListener("click", async () => {
+scoreboardBtn.addEventListener("click", () => withLoading(scoreboardBtn, "Loading...", async () => {
   scoreboardPanel.style.display = "block";
   scoreboardSummary.textContent = "Loading scoreboard...";
   scoreboardResults.innerHTML = "";
@@ -999,14 +1069,14 @@ scoreboardBtn.addEventListener("click", async () => {
   } catch (err) {
     scoreboardSummary.textContent = "Request failed — is the server running?";
   }
-});
+}));
 
 const selfTestBtn = document.getElementById("selfTestBtn");
 const selfTestPanel = document.getElementById("selfTestPanel");
 const selfTestSummary = document.getElementById("selfTestSummary");
 const selfTestResults = document.getElementById("selfTestResults");
 
-selfTestBtn.addEventListener("click", async () => {
+selfTestBtn.addEventListener("click", () => withLoading(selfTestBtn, "Running...", async () => {
   selfTestPanel.style.display = "block";
   selfTestSummary.textContent = "Running self-test...";
   selfTestResults.innerHTML = "";
@@ -1028,7 +1098,7 @@ selfTestBtn.addEventListener("click", async () => {
   } catch (err) {
     selfTestSummary.textContent = "Request failed — is the server running?";
   }
-});
+}));
 
 resetBtn.addEventListener("click", () => {
   messages = [];
