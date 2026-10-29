@@ -8,7 +8,13 @@ Built for the Nebius x NVIDIA Global AI Hackathon 2026.
 
 ## The problem
 
-The AI agents market is worth **$10.91B in 2026 and projected to hit $50.31B by 2030** (45.8% CAGR). 51% of enterprises already run agents in production. Every major player in the AI phone/voice agent space — Bland AI, Synthflow, Vapi, Air AI, Intercom Fin, Salesforce Agentforce — is built the same way: a closed-weight LLM (OpenAI, Anthropic, Google) wrapped by a closed voice vendor (ElevenLabs, Deepgram), glued together with orchestration logic.
+An engineer running Salesforce **Agentforce** for public customer support had the AI agent pull from an internal-only knowledge article during a cancellation request and hand the customer internal cancel-retention instructions it was never supposed to see. It happened once, cost them a client, and could not be reliably reproduced afterward. Their own words: *"it is a black box we don't have control over."*
+
+That's not a startup's weekend hack failing. That's Salesforce's flagship enterprise agent platform, in production, this year. And it's structurally unfixable from where they're standing — because Agentforce's reasoning happens inside a closed model they don't own.
+
+Builders running Vapi, Bland AI, and Retell report the same category of pain from the other direction: *"fragmented logs across STT/LLM/TTS," "cost unpredictability in real-time calls,"* debugging sessions that start from "a call just broke, somewhere, for some reason." Nobody can point at the moment the agent decided what to do, because none of these stacks expose that moment as data.
+
+The AI agents market is worth **$10.91B in 2026 and projected to hit $50.31B by 2030** (45.8% CAGR). 51% of enterprises already run agents in production. Every major player in the space — Bland AI, Synthflow, Vapi, Air AI, Intercom Fin, Salesforce Agentforce — is built the same way: a closed-weight LLM (OpenAI, Anthropic, Google) wrapped by a closed voice vendor (ElevenLabs, Deepgram), glued together with orchestration logic they don't fully control either.
 
 None of them can answer the question regulators are about to force them to answer: **"why did your AI agent say that, and prove it."**
 
@@ -86,3 +92,9 @@ public/index.html    — frontend: mic capture, voice playback, reasoning panel,
 - Model slug in `.env.example` is the exact verified slug from Nebius Token Factory's live model catalog as of this build — if Nebius renames or deprecates it, check `GET /v1/models` on your account and update `NEBIUS_MODEL`.
 - Web Speech API STT/TTS works best in Chrome/Edge.
 - No live phone-line integration in this build — browser mic/speaker stands in for the call to keep the demo buildable in the hackathon window; see "What's next."
+
+## Sources
+
+- Agentforce black-box incident and Vapi/Bland/Retell production pain points: public builder discussion threads, r/salesforce and voice-agent engineering communities, 2026.
+- AI agents market size ($10.91B 2026 → $50.31B 2030): industry market research aggregated 2026.
+- EU AI Act Article 11/13 interpretability requirements: EU AI Act implementation timeline, transparency obligations binding August 2026, high-risk obligations enforcement December 2027.
