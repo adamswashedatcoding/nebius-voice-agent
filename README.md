@@ -75,6 +75,13 @@ No meaningful difference. The real finding is different from — and more intere
 
 We're reporting the corrected version, not the flashier wrong one, because that's the actual point of building a measurement tool: it has to correct you too.
 
+## Four last-mile additions, built from data already captured
+
+- **Confound Detector** (`/api/confound-check`): formalizes the exact mistake above into a reusable check. Compares two groups of trials on tool-message text and model identifier and flags a confound if either differs — including a permanent record of our own historical case study, side by side with a live check against the current session's data.
+- **Honest Scoreboard** (`/api/scoreboard`): one view of what every mechanism actually achieved — guardrail catch rate, Reality Gap rates under both conditions, real measured cost, and an explicit known-limitations list (including an honest "not tested yet" for false-positive rate on legitimate bookings, rather than a fabricated zero).
+- **Uncertainty labeling**: every rate in the Scoreboard carries a sample size, a 95% Wilson-score confidence interval, and a `weakEvidence` flag for samples under 10 — small samples get called out as weak, not reported as fact.
+- **Reproduction button**: reruns a specific recorded trial's exact conditions and reports whether the outcome matched. Nemotron Nano runs at temperature 0.7, so wording and sometimes outcome can legitimately differ between runs — the tool says so honestly instead of implying guaranteed reproducibility.
+
 ## Why this matters beyond one demo
 
 Swap the vertical and the pattern holds:

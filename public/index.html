@@ -130,7 +130,7 @@
     color: var(--muted);
     font-size: 14px;
   }
-  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn, #pressureExpBtn, #evidenceBtn {
+  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn, #pressureExpBtn, #evidenceBtn, #confoundBtn, #scoreboardBtn, .reproduceBtn {
     padding: 14px 20px;
     border-radius: 100px;
     background: transparent;
@@ -383,6 +383,21 @@
       <a id="evidenceDownload" style="display:none;" download="glassbox-evidence-receipt.json">Download as JSON</a>
     </div>
 
+    <div class="controls">
+      <button id="confoundBtn">Run Confound Detector</button>
+      <button id="scoreboardBtn">View Honest Scoreboard</button>
+    </div>
+
+    <div class="adversarial-panel" id="confoundPanel" style="display:none;">
+      <div class="adversarial-summary" id="confoundSummary">Confound Detector</div>
+      <div class="adversarial-results" id="confoundResults"></div>
+    </div>
+
+    <div class="adversarial-panel" id="scoreboardPanel" style="display:none;">
+      <div class="adversarial-summary" id="scoreboardSummary">Honest Scoreboard</div>
+      <div class="adversarial-results" id="scoreboardResults"></div>
+    </div>
+
     <div class="transcript" id="transcript"></div>
     <div class="unsupported" id="unsupported" style="display:none;">
       This browser doesn't support the Web Speech API for voice capture. Try Chrome or Edge, or type your message below.
@@ -619,8 +634,33 @@ async function attemptBooking(simulateTimeout) {
     div.innerHTML =
       '<div class="gap-box gap-box-claim"><div class="gap-box-label">Agent claim</div>"' + escapeHtml(data.modelReply) + '"</div>' +
       '<div class="gap-box gap-box-truth"><div class="gap-box-label">Ground truth (tool result)</div>' + escapeHtml(data.toolResult.status) + " — " + escapeHtml(data.toolResult.detail) + '</div>' +
-      interventionLabel;
+      interventionLabel +
+      '<button class="reproduceBtn" data-trial-id="' + data.id + '" style="margin-top:8px;font-size:11px;padding:8px 14px;">Reproduce this trial</button>' +
+      '<div class="reproduce-output"></div>';
     realityGapResults.appendChild(div);
+
+    div.querySelector(".reproduceBtn").addEventListener("click", async (ev) => {
+      const trialId = Number(ev.target.getAttribute("data-trial-id"));
+      const outputEl = div.querySelector(".reproduce-output");
+      outputEl.textContent = "Reproducing trial " + trialId + "...";
+      try {
+        const repRes = await fetch("/api/reproduce-trial", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: trialId }),
+        });
+        const repData = await repRes.json();
+        if (!repRes.ok) {
+          outputEl.textContent = "Error: " + (repData.error || "unknown");
+          return;
+        }
+        outputEl.innerHTML =
+          '<div class="gap-box ' + (repData.sameOutcome ? "gap-box-ok" : "gap-box-blocked") + '"><div class="gap-box-label">Reproduction — ' +
+          (repData.sameOutcome ? "same outcome" : "different outcome") + '</div>"' + escapeHtml(repData.reproduction.modelReply) + '"<br><span style="color:var(--muted);font-size:11px;">' + escapeHtml(repData.note) + '</span></div>';
+      } catch (err) {
+        outputEl.textContent = "Reproduction request failed.";
+      }
+    });
   } catch (err) {
     realityGapSummary.textContent = "Request failed — is the server running?";
   } finally {
@@ -742,6 +782,85 @@ evidenceBtn.addEventListener("click", async () => {
     evidenceDownload.style.display = "inline-block";
   } catch (err) {
     evidenceJson.textContent = "Request failed — is the server running?";
+  }
+});
+
+const confoundBtn = document.getElementById("confoundBtn");
+const confoundPanel = document.getElementById("confoundPanel");
+const confoundSummary = document.getElementById("confoundSummary");
+const confoundResults = document.getElementById("confoundResults");
+
+confoundBtn.addEventListener("click", async () => {
+  confoundPanel.style.display = "block";
+  confoundSummary.textContent = "Checking for confounds...";
+  confoundResults.innerHTML = "";
+  try {
+    const res = await fetch("/api/confound-check");
+    const data = await res.json();
+    confoundSummary.textContent = "Confound Detector — historical mistake vs. current live data";
+
+    const hist = data.historicalCaseStudy;
+    const histDiv = document.createElement("div");
+    histDiv.className = "adv-item";
+    histDiv.innerHTML =
+      '<div class="adv-prompt">Historical case study: ' + escapeHtml(hist.comparisonAttempted) + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">' + escapeHtml(hist.groupA.label) + '</div>"' + escapeHtml(hist.groupA.toolMessageUsed) + '" — ' + hist.groupA.falseSuccessClaims + '/' + hist.groupA.trials + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">' + escapeHtml(hist.groupB.label) + '</div>"' + escapeHtml(hist.groupB.toolMessageUsed) + '" — ' + hist.groupB.falseSuccessClaims + '/' + hist.groupB.trials + '</div>' +
+      '<div class="gap-box gap-box-blocked"><div class="gap-box-label">Confound detected</div>' + escapeHtml(hist.detail) + '</div>';
+    confoundResults.appendChild(histDiv);
+
+    const live = data.liveCheck;
+    const liveDiv = document.createElement("div");
+    liveDiv.className = "adv-item";
+    const liveBoxClass = live.confoundDetected === false ? "gap-box-ok" : live.confoundDetected === true ? "gap-box-blocked" : "gap-box-truth";
+    liveDiv.innerHTML =
+      '<div class="adv-prompt">Live check against current session data</div>' +
+      '<div class="gap-box ' + liveBoxClass + '"><div class="gap-box-label">Result</div>' + escapeHtml(live.detail) + '</div>';
+    confoundResults.appendChild(liveDiv);
+  } catch (err) {
+    confoundSummary.textContent = "Request failed — is the server running?";
+  }
+});
+
+const scoreboardBtn = document.getElementById("scoreboardBtn");
+const scoreboardPanel = document.getElementById("scoreboardPanel");
+const scoreboardSummary = document.getElementById("scoreboardSummary");
+const scoreboardResults = document.getElementById("scoreboardResults");
+
+function fmtRate(r) {
+  if (r.total === 0) return "no trials yet";
+  const pct = (r.rate * 100).toFixed(0);
+  const lo = (r.ciLow * 100).toFixed(0);
+  const hi = (r.ciHigh * 100).toFixed(0);
+  const weak = r.weakEvidence ? " — SMALL SAMPLE, weak evidence" : "";
+  return pct + "% (95% CI " + lo + "–" + hi + "%, n=" + r.total + ")" + weak;
+}
+
+scoreboardBtn.addEventListener("click", async () => {
+  scoreboardPanel.style.display = "block";
+  scoreboardSummary.textContent = "Loading scoreboard...";
+  scoreboardResults.innerHTML = "";
+  try {
+    const res = await fetch("/api/scoreboard");
+    const data = await res.json();
+    scoreboardSummary.textContent = "Honest Scoreboard — generated " + new Date(data.generatedAt).toLocaleTimeString();
+
+    const div = document.createElement("div");
+    div.className = "adv-item";
+    div.innerHTML =
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Guardrail (price/address) catch rate</div>' + fmtRate(data.guardrail) + '<br><span style="color:var(--muted);font-size:11px;">' + escapeHtml(data.guardrail.falsePositivesOnLegitimateScenarios) + '</span></div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Reality Gap — neutral condition</div>' + fmtRate(data.realityGap.neutralCondition) + '</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Reality Gap — pressure condition</div>' + fmtRate(data.realityGap.pressureCondition) + '</div>' +
+      '<div class="gap-box gap-box-claim"><div class="gap-box-label">Total measured cost this session</div>$' + data.cost.totalCostUsd.toFixed(6) + ' across ' + data.cost.totalCalls + ' calls, ' + data.cost.totalTokens + ' tokens</div>';
+    scoreboardResults.appendChild(div);
+
+    const limDiv = document.createElement("div");
+    limDiv.className = "adv-item";
+    limDiv.innerHTML = '<div class="adv-prompt">Known limitations</div><ul style="margin:4px 0 0 18px;padding:0;color:var(--muted);font-size:12px;">' +
+      data.knownLimitations.map((l) => '<li>' + escapeHtml(l) + '</li>').join('') + '</ul>';
+    scoreboardResults.appendChild(limDiv);
+  } catch (err) {
+    scoreboardSummary.textContent = "Request failed — is the server running?";
   }
 });
 
