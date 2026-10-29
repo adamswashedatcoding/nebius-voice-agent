@@ -130,7 +130,7 @@
     color: var(--muted);
     font-size: 14px;
   }
-  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn, #pressureExpBtn, #evidenceBtn, #confoundBtn, #scoreboardBtn, .reproduceBtn {
+  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn, #pressureExpBtn, #evidenceBtn, #confoundBtn, #scoreboardBtn, #selfTestBtn, #verifierFailBtn, .reproduceBtn {
     padding: 14px 20px;
     border-radius: 100px;
     background: transparent;
@@ -206,6 +206,7 @@
   .gap-box-truth { background: rgba(0,0,0,0.25); border: 1px solid var(--panel-border); }
   .gap-box-blocked { background: rgba(255,85,102,0.12); border: 1px solid rgba(255,85,102,0.35); }
   .gap-box-ok { background: rgba(53,208,138,0.1); border: 1px solid rgba(53,208,138,0.3); }
+  .gap-box-unverified { background: rgba(255,200,50,0.1); border: 1px solid rgba(255,200,50,0.4); }
   .gap-box-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 2px; }
   .transcript {
     display: flex;
@@ -354,6 +355,7 @@
     <div class="controls">
       <button id="bookNormalBtn">Attempt booking (normal)</button>
       <button id="bookTimeoutBtn">Attempt booking (simulate calendar timeout)</button>
+      <button id="verifierFailBtn">Simulate verifier failure (fail-closed test)</button>
       <button id="discoveryBtn">Run 10 automated timeout trials (discover failure rate)</button>
     </div>
 
@@ -386,6 +388,12 @@
     <div class="controls">
       <button id="confoundBtn">Run Confound Detector</button>
       <button id="scoreboardBtn">View Honest Scoreboard</button>
+      <button id="selfTestBtn">Run Self-Test (5 deterministic checks)</button>
+    </div>
+
+    <div class="adversarial-panel" id="selfTestPanel" style="display:none;">
+      <div class="adversarial-summary" id="selfTestSummary">Self-Test</div>
+      <div class="adversarial-results" id="selfTestResults"></div>
     </div>
 
     <div class="adversarial-panel" id="confoundPanel" style="display:none;">
@@ -601,20 +609,23 @@ const discoveryPanel = document.getElementById("discoveryPanel");
 const discoverySummary = document.getElementById("discoverySummary");
 const discoveryResults = document.getElementById("discoveryResults");
 
-async function attemptBooking(simulateTimeout) {
+async function attemptBooking(simulateTimeout, simulateVerifierFailure) {
   realityGapPanel.style.display = "block";
-  realityGapSummary.textContent = simulateTimeout
+  realityGapSummary.textContent = simulateVerifierFailure
+    ? "Attempting booking with the verifier itself forced to fail..."
+    : simulateTimeout
     ? "Attempting booking with a simulated calendar timeout..."
     : "Attempting a normal booking...";
   realityGapResults.innerHTML = "";
   bookNormalBtn.disabled = true;
   bookTimeoutBtn.disabled = true;
+  verifierFailBtn.disabled = true;
 
   try {
     const res = await fetch("/api/attempt-booking", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ simulateTimeout }),
+      body: JSON.stringify({ simulateTimeout, simulateVerifierFailure }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -622,13 +633,19 @@ async function attemptBooking(simulateTimeout) {
       return;
     }
 
-    realityGapSummary.textContent = data.realityGapCaught
-      ? "REALITY GAP CAUGHT — Nova claimed success on a failed booking. Independent check corrected it."
-      : "No mismatch — Nova's claim matched the actual booking outcome.";
+    if (data.verificationStatus === "VERIFICATION_FAILED") {
+      realityGapSummary.textContent = "VERIFICATION_FAILED — the checker itself couldn't run. System did NOT default to 'verified clean.'";
+    } else {
+      realityGapSummary.textContent = data.realityGapCaught
+        ? "REALITY GAP CAUGHT — Nova claimed success on a failed booking. Independent check corrected it."
+        : "No mismatch — Nova's claim matched the actual booking outcome.";
+    }
 
     const div = document.createElement("div");
     div.className = "adv-item";
-    const interventionLabel = data.realityGapCaught
+    const interventionLabel = data.verificationStatus === "VERIFICATION_FAILED"
+      ? '<div class="gap-box gap-box-unverified"><div class="gap-box-label">System response — UNVERIFIED (fail-closed)</div>Verification could not run, so the claim above is NOT marked clean. Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
+      : data.realityGapCaught
       ? '<div class="gap-box gap-box-blocked"><div class="gap-box-label">System response — BLOCKED</div>The false claim above was intercepted before the caller heard it. Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
       : '<div class="gap-box gap-box-ok"><div class="gap-box-label">System response</div>No mismatch detected — nothing to block, Nova\'s claim matched the ground truth.</div>';
     div.innerHTML =
@@ -666,11 +683,14 @@ async function attemptBooking(simulateTimeout) {
   } finally {
     bookNormalBtn.disabled = false;
     bookTimeoutBtn.disabled = false;
+    verifierFailBtn.disabled = false;
   }
 }
 
-bookNormalBtn.addEventListener("click", () => attemptBooking(false));
-bookTimeoutBtn.addEventListener("click", () => attemptBooking(true));
+const verifierFailBtn = document.getElementById("verifierFailBtn");
+bookNormalBtn.addEventListener("click", () => attemptBooking(false, false));
+bookTimeoutBtn.addEventListener("click", () => attemptBooking(true, false));
+verifierFailBtn.addEventListener("click", () => attemptBooking(true, true));
 
 discoveryBtn.addEventListener("click", async () => {
   discoveryPanel.style.display = "block";
@@ -861,6 +881,35 @@ scoreboardBtn.addEventListener("click", async () => {
     scoreboardResults.appendChild(limDiv);
   } catch (err) {
     scoreboardSummary.textContent = "Request failed — is the server running?";
+  }
+});
+
+const selfTestBtn = document.getElementById("selfTestBtn");
+const selfTestPanel = document.getElementById("selfTestPanel");
+const selfTestSummary = document.getElementById("selfTestSummary");
+const selfTestResults = document.getElementById("selfTestResults");
+
+selfTestBtn.addEventListener("click", async () => {
+  selfTestPanel.style.display = "block";
+  selfTestSummary.textContent = "Running self-test...";
+  selfTestResults.innerHTML = "";
+  try {
+    const res = await fetch("/api/self-test");
+    const data = await res.json();
+    selfTestSummary.textContent = data.passed + " / " + data.total + " deterministic checks passed" + (data.allPassed ? "" : " — SOME FAILED, see below");
+
+    data.tests.forEach((t) => {
+      const div = document.createElement("div");
+      div.className = "adv-item";
+      const outcomeClass = t.passed ? "adv-outcome-caught" : "adv-outcome-missed";
+      div.innerHTML =
+        '<div class="adv-prompt">' + escapeHtml(t.name) + '</div>' +
+        '<div class="' + outcomeClass + '">' + (t.passed ? "PASS" : "FAIL") + ' — expected: ' + escapeHtml(t.expected) + '</div>' +
+        '<div class="adv-reply">Actual: ' + escapeHtml(t.actual) + '</div>';
+      selfTestResults.appendChild(div);
+    });
+  } catch (err) {
+    selfTestSummary.textContent = "Request failed — is the server running?";
   }
 });
 
