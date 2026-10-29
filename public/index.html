@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nova — Self-Hosted AI Phone Workforce</title>
+<style>
+  :root {
+    --bg: #05070d;
+    --panel: #0c1222;
+    --panel-border: #1b2440;
+    --text: #e8ecf8;
+    --muted: #7c89ad;
+    --accent: #4f7bff;
+    --accent-glow: rgba(79, 123, 255, 0.35);
+    --user-bubble: #16203b;
+    --nova-bubble: #121a30;
+    --ok: #35d08a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+  }
+  header p {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0;
+  }
+  .badges {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--panel-border);
+    color: var(--muted);
+    background: var(--panel);
+  }
+  .orb-stage {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0 28px;
+  }
+  .orb {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #6e93ff, #2c45a8 60%, #0c1430 100%);
+    box-shadow: 0 0 0 0 var(--accent-glow);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    position: relative;
+  }
+  .orb.listening {
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .orb.speaking {
+    animation: speak 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+    50% { box-shadow: 0 0 0 22px rgba(79,123,255,0); }
+  }
+  @keyframes speak {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.06); }
+  }
+  .status {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    min-height: 18px;
+  }
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  button {
+    font-family: inherit;
+    border: none;
+    cursor: pointer;
+  }
+  #micBtn {
+    padding: 14px 32px;
+    border-radius: 100px;
+    background: var(--accent);
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+  #micBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  #micBtn.active {
+    background: #ff5566;
+    box-shadow: 0 8px 24px rgba(255, 85, 102, 0.35);
+  }
+  #resetBtn {
+    padding: 14px 20px;
+    border-radius: 100px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .transcript {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    max-width: 85%;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: var(--user-bubble);
+    border: 1px solid var(--panel-border);
+  }
+  .bubble.nova {
+    align-self: flex-start;
+    background: var(--nova-bubble);
+    border: 1px solid var(--panel-border);
+  }
+  .bubble .who {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .unsupported {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 10px;
+  }
+  footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Nova</h1>
+      <p>Self-hosted AI phone receptionist — no ElevenLabs, no OpenAI</p>
+      <div class="badges">
+        <span class="badge">NVIDIA Nemotron</span>
+        <span class="badge">Nebius Token Factory</span>
+        <span class="badge">Open-source model only</span>
+      </div>
+    </header>
+
+    <div class="orb-stage">
+      <div class="orb" id="orb"></div>
+    </div>
+    <div class="status" id="status">Tap "Start Call" and speak like a customer</div>
+
+    <div class="controls">
+      <button id="micBtn">Start Call</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <div class="transcript" id="transcript"></div>
+    <div class="unsupported" id="unsupported" style="display:none;">
+      This browser doesn't support the Web Speech API for voice capture. Try Chrome or Edge, or type your message below.
+    </div>
+
+    <footer>Built on Nebius AI Cloud · NVIDIA open-source model · no vendor voice-API tax</footer>
+  </div>
+
+<script>
+const orb = document.getElementById("orb");
+const statusEl = document.getElementById("status");
+const micBtn = document.getElementById("micBtn");
+const resetBtn = document.getElementById("resetBtn");
+const transcriptEl = document.getElementById("transcript");
+const unsupportedEl = document.getElementById("unsupported");
+
+let messages = [];
+let recognition = null;
+let listening = false;
+
+function addBubble(role, text) {
+  const div = document.createElement("div");
+  div.className = "bubble " + (role === "user" ? "user" : "nova");
+  div.innerHTML = '<div class="who">' + (role === "user" ? "Caller" : "Nova") + '</div>' + text;
+  transcriptEl.appendChild(div);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+function setStatus(text) {
+  statusEl.textContent = text;
+}
+
+async function sendToNova(userText) {
+  addBubble("user", userText);
+  messages.push({ role: "user", content: userText });
+  setStatus("Nova is thinking...");
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setStatus("Error: " + (data.error || "unknown"));
+      addBubble("nova", "Sorry, something broke on my end: " + (data.error || "unknown error"));
+      return;
+    }
+
+    messages.push({ role: "assistant", content: data.reply });
+    addBubble("nova", data.reply);
+    speak(data.reply);
+  } catch (err) {
+    setStatus("Network error");
+    addBubble("nova", "I couldn't reach the server. Check the backend is running.");
+  }
+}
+
+function speak(text) {
+  if (!("speechSynthesis" in window)) {
+    setStatus("Ready — tap Start Call");
+    return;
+  }
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1.02;
+  utter.onstart = () => {
+    orb.classList.add("speaking");
+    setStatus("Nova is speaking...");
+  };
+  utter.onend = () => {
+    orb.classList.remove("speaking");
+    setStatus("Ready — tap the mic to reply");
+  };
+  window.speechSynthesis.speak(utter);
+}
+
+function initRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    unsupportedEl.style.display = "block";
+    micBtn.disabled = true;
+    return null;
+  }
+  const rec = new SpeechRecognition();
+  rec.lang = "en-US";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+
+  rec.onresult = (event) => {
+    const text = event.results[0][0].transcript;
+    sendToNova(text);
+  };
+  rec.onend = () => {
+    listening = false;
+    micBtn.classList.remove("active");
+    micBtn.textContent = "Start Call";
+    orb.classList.remove("listening");
+  };
+  rec.onerror = (event) => {
+    setStatus("Mic error: " + event.error);
+    listening = false;
+    micBtn.classList.remove("active");
+    micBtn.textContent = "Start Call";
+    orb.classList.remove("listening");
+  };
+  return rec;
+}
+
+micBtn.addEventListener("click", () => {
+  if (!recognition) recognition = initRecognition();
+  if (!recognition) return;
+
+  if (listening) {
+    recognition.stop();
+    return;
+  }
+
+  listening = true;
+  micBtn.classList.add("active");
+  micBtn.textContent = "Listening... (tap to stop)";
+  orb.classList.add("listening");
+  setStatus("Listening...");
+  recognition.start();
+});
+
+resetBtn.addEventListener("click", () => {
+  messages = [];
+  transcriptEl.innerHTML = "";
+  setStatus("Reset. Tap Start Call to begin again.");
+  window.speechSynthesis.cancel();
+});
+
+(async function checkHealth() {
+  try {
+    const res = await fetch("/api/health");
+    const data = await res.json();
+    if (!data.keyConfigured) {
+      setStatus("Server has no NEBIUS_API_KEY set — add it to .env and restart.");
+    }
+  } catch (e) {
+    setStatus("Backend not reachable yet.");
+  }
+})();
+</script>
+</body>
+</html>
