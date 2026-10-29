@@ -130,6 +130,36 @@
     color: var(--muted);
     font-size: 14px;
   }
+  #adversarialBtn {
+    padding: 14px 20px;
+    border-radius: 100px;
+    background: transparent;
+    border: 1px solid rgba(255, 85, 102, 0.4);
+    color: #ff8a97;
+    font-size: 13px;
+  }
+  .adversarial-panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+  }
+  .adversarial-summary {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .adv-item {
+    border-top: 1px solid var(--panel-border);
+    padding: 10px 0;
+    font-size: 12px;
+  }
+  .adv-item:first-child { border-top: none; }
+  .adv-prompt { color: var(--muted); margin-bottom: 4px; }
+  .adv-outcome-caught { color: var(--ok); font-weight: 700; }
+  .adv-outcome-missed { color: #ff5566; font-weight: 700; }
+  .adv-reply { color: var(--text); margin-top: 4px; }
   .transcript {
     display: flex;
     flex-direction: column;
@@ -243,7 +273,7 @@
         <span class="badge">NVIDIA Nemotron</span>
         <span class="badge">Nebius Token Factory</span>
         <span class="badge">Real reasoning, not a summary</span>
-        <span class="badge">EU AI Act Art. 13-ready</span>
+        <span class="badge">Enforced, not just prompted</span>
       </div>
     </header>
 
@@ -266,6 +296,12 @@
     <div class="controls">
       <button id="micBtn">Start Call</button>
       <button id="resetBtn">Reset</button>
+      <button id="adversarialBtn">Run adversarial test (discover + verify defense)</button>
+    </div>
+
+    <div class="adversarial-panel" id="adversarialPanel" style="display:none;">
+      <div class="adversarial-summary" id="adversarialSummary"></div>
+      <div class="adversarial-results" id="adversarialResults"></div>
     </div>
 
     <div class="transcript" id="transcript"></div>
@@ -419,6 +455,46 @@ micBtn.addEventListener("click", () => {
   orb.classList.add("listening");
   setStatus("Listening...");
   recognition.start();
+});
+
+const adversarialBtn = document.getElementById("adversarialBtn");
+const adversarialPanel = document.getElementById("adversarialPanel");
+const adversarialSummary = document.getElementById("adversarialSummary");
+const adversarialResults = document.getElementById("adversarialResults");
+
+adversarialBtn.addEventListener("click", async () => {
+  adversarialPanel.style.display = "block";
+  adversarialSummary.textContent = "Running 6 adversarial prompts against Nova...";
+  adversarialResults.innerHTML = "";
+  adversarialBtn.disabled = true;
+
+  try {
+    const res = await fetch("/api/adversarial-suite", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      adversarialSummary.textContent = "Error: " + (data.error || "unknown");
+      return;
+    }
+    adversarialSummary.textContent =
+      data.caught + " / " + data.total + " attacks caught by the independent enforcement layer (" +
+      data.missed + " missed).";
+
+    data.results.forEach((r) => {
+      const div = document.createElement("div");
+      div.className = "adv-item";
+      const outcomeClass = r.caught ? "adv-outcome-caught" : "adv-outcome-missed";
+      const outcomeText = r.caught ? "BLOCKED — " + r.rule : "NOT CAUGHT";
+      div.innerHTML =
+        '<div class="adv-prompt">Attack: "' + escapeHtml(r.prompt) + '"</div>' +
+        '<div class="' + outcomeClass + '">' + outcomeText + '</div>' +
+        '<div class="adv-reply">Model said: "' + escapeHtml(r.modelReply) + '"</div>';
+      adversarialResults.appendChild(div);
+    });
+  } catch (err) {
+    adversarialSummary.textContent = "Request failed — is the server running?";
+  } finally {
+    adversarialBtn.disabled = false;
+  }
 });
 
 resetBtn.addEventListener("click", () => {

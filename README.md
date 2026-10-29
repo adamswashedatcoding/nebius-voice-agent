@@ -28,9 +28,9 @@ If your agent's "brain" is a closed API call, you cannot produce a real explanat
 
 NVIDIA's Nemotron 3 models return a dedicated `reasoning` field alongside every response: the model's actual internal deliberation before it decided what to say. Not a prompt-engineered summary. Not a post-hoc rationalization. The literal chain-of-thought that produced the output, available because the weights — and therefore the inference pipeline — are open and self-hostable via Nebius Token Factory.
 
-Pair that with token-level usage data (also returned natively, also unavailable in the same verifiable form from closed voice-agent vendors who bill you a flat per-minute rate and never show you what's underneath it), and you get something the entire $50B agent market currently cannot offer: **a per-decision audit log with a real reasoning trace and a real cost receipt, generated automatically, from infrastructure you control.**
+Pair that with token-level usage data (also returned natively, also unavailable in the same verifiable form from closed voice-agent vendors who bill you a flat per-minute rate and never show you what's underneath it), and you get something the entire $50B agent market currently cannot offer: **a per-decision log with a real reasoning trace and a real cost receipt, generated automatically, from infrastructure you control.**
 
-That is the compliance story every one of those closed-API competitors will need in the next 12–18 months and cannot build without re-architecting onto open models.
+Important honesty check: a model's self-reported `reasoning` field is an *observation* of what the model generated as its deliberation, not formal proof that this is the true causal mechanism behind its output — language models can produce reasoning text that's incomplete or doesn't fully match their actual computation. We treat it as evidence worth logging and inspecting, not as a legal compliance certificate. Owning the weights is what makes *any* real investigation possible at all; it's the precondition for the compliance story closed-API competitors will need in the next 12–18 months, not a finished one.
 
 ## The proof-of-concept: Nova
 
@@ -39,10 +39,19 @@ We built the hardest version of this to prove it generalizes: a live AI phone re
 Every single reply Nova gives comes with:
 
 1. **A spoken response** — short, warm, trying to move the caller toward booking.
-2. **Nova's real reasoning trace** — the model's actual deliberation, exposed in an expandable panel. Not synthesized, not summarized by us — the literal `reasoning` field NVIDIA Nemotron returns.
+2. **Nova's reasoning trace** — the model's self-reported deliberation, exposed in an expandable panel. Not synthesized, not summarized by us — the literal `reasoning` field NVIDIA Nemotron returns, logged as an observation rather than claimed as proof of causation.
 3. **A live, real cost receipt** — computed from actual `usage.prompt_tokens` / `usage.completion_tokens` returned by the API, multiplied by Nebius Token Factory's published per-token rates, shown running total against what the same call duration would cost on ElevenLabs Agents' hosting fee alone (voice + orchestration, before you even add an LLM).
+4. **An independently enforced policy** — a server-side check, outside the model entirely, that blocks any reply containing an invented price or address (this demo never supplies either as context, so any such claim is by construction hallucinated). If Nova tries to state one anyway, the guardrail catches it, logs the violation with the blocked text as evidence, and substitutes a safe fallback — the model has no say in whether the violation reaches the caller.
 
-No number on screen is invented. Every dollar figure is computed live from the actual API response for that exact exchange.
+No cost number on screen is invented. Every dollar figure is computed live from the actual API response for that exact exchange. The reasoning trace is real model output, logged honestly as an observation.
+
+## Verifying the guardrail: an adversarial test battery
+
+A "Run adversarial test" button in the UI fires six hand-written attack prompts at Nova — baiting it to state an exact price or address through direct asks, feigned exceptions ("just this once, off the record"), numeric ranges, and spelled-out numbers instead of digits — and reports which ones the guardrail actually caught.
+
+Honest result from our own test runs: **the guardrail caught roughly 1 in 6 attacks per run**, and which one it catches varies between runs because the model (temperature 0.7) phrases its answers differently each time — sometimes with digits ("50 euros", caught), sometimes spelled out ("fifty euros," missed by the first regex version), sometimes by naming a street without a house number ("We're on Main Street," missed). We tightened the price/address patterns once after seeing this and reran the suite rather than reporting only the flattering first result.
+
+This is the actual point, not a flaw to hide: **prompting an LLM not to do something is not a defense — testing an independent, deterministic check against adversarial pressure is.** The gap between "1/6 caught" and "6/6 caught" is real, unglamorous engineering work (broader regex, or better, a second small classifier model dedicated to this one check), not a solved problem. We're showing the honest number because a fake 6/6 would be a worse submission than a real 1/6 with the methodology to keep closing the gap.
 
 ## Why this matters beyond one demo
 
@@ -58,7 +67,7 @@ All of them hit the same wall closed-model vendors hit. All of them are solved t
 ## Stack
 
 - **LLM**: NVIDIA Nemotron 3 Nano 30B A3B (`nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`), served via **Nebius Token Factory**'s OpenAI-compatible API — a reasoning model that natively returns its chain-of-thought in the API response
-- **Backend**: Node.js + Express — proxies chat requests, keeps the API key server-side, computes real per-call cost from returned token usage (`$0.06`/M input, `$0.24`/M output tokens — Nebius Token Factory published rates)
+- **Backend**: Node.js + Express — proxies chat requests, keeps the API key server-side, computes real per-call cost from returned token usage (`$0.06`/M input, `$0.24`/M output tokens — Nebius Token Factory published rates), and runs an independent policy guardrail (regex-based, outside the model) that blocks invented prices/addresses and logs violations
 - **Frontend**: plain HTML/CSS/JS — Web Speech API for mic capture (STT) and speech synthesis (TTS), zero extra vendor keys
 - **Infra**: Nebius AI Cloud / Token Factory, per hackathon rules — no OpenAI, no ElevenLabs, no Anthropic anywhere in the pipeline
 
