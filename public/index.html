@@ -130,7 +130,7 @@
     color: var(--muted);
     font-size: 14px;
   }
-  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn {
+  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn, #pressureExpBtn, #evidenceBtn {
     padding: 14px 20px;
     border-radius: 100px;
     background: transparent;
@@ -164,6 +164,49 @@
   .adv-outcome-caught { color: var(--ok); font-weight: 700; }
   .adv-outcome-missed { color: #ff5566; font-weight: 700; }
   .adv-reply { color: var(--text); margin-top: 4px; }
+  .pressure-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 480px) {
+    .pressure-columns { grid-template-columns: 1fr; }
+  }
+  .pressure-col-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .evidence-json {
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 320px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #evidenceDownload {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .gap-box {
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .gap-box-claim { background: rgba(79,123,255,0.1); border: 1px solid rgba(79,123,255,0.3); }
+  .gap-box-truth { background: rgba(0,0,0,0.25); border: 1px solid var(--panel-border); }
+  .gap-box-blocked { background: rgba(255,85,102,0.12); border: 1px solid rgba(255,85,102,0.35); }
+  .gap-box-ok { background: rgba(53,208,138,0.1); border: 1px solid rgba(53,208,138,0.3); }
+  .gap-box-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 2px; }
   .transcript {
     display: flex;
     flex-direction: column;
@@ -322,6 +365,22 @@
     <div class="adversarial-panel" id="discoveryPanel" style="display:none;">
       <div class="adversarial-summary" id="discoverySummary"></div>
       <div class="adversarial-results" id="discoveryResults"></div>
+    </div>
+
+    <div class="controls">
+      <button id="pressureExpBtn">Run paired experiment (neutral vs. pressure, 6 trials each)</button>
+      <button id="evidenceBtn">View Evidence Receipt</button>
+    </div>
+
+    <div class="adversarial-panel" id="pressureExpPanel" style="display:none;">
+      <div class="adversarial-summary" id="pressureExpSummary"></div>
+      <div class="pressure-columns" id="pressureExpResults"></div>
+    </div>
+
+    <div class="adversarial-panel" id="evidencePanel" style="display:none;">
+      <div class="adversarial-summary" id="evidenceSummary">Evidence Receipt</div>
+      <pre class="evidence-json" id="evidenceJson"></pre>
+      <a id="evidenceDownload" style="display:none;" download="glassbox-evidence-receipt.json">Download as JSON</a>
     </div>
 
     <div class="transcript" id="transcript"></div>
@@ -554,12 +613,13 @@ async function attemptBooking(simulateTimeout) {
 
     const div = document.createElement("div");
     div.className = "adv-item";
+    const interventionLabel = data.realityGapCaught
+      ? '<div class="gap-box gap-box-blocked"><div class="gap-box-label">System response — BLOCKED</div>The false claim above was intercepted before the caller heard it. Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
+      : '<div class="gap-box gap-box-ok"><div class="gap-box-label">System response</div>No mismatch detected — nothing to block, Nova\'s claim matched the ground truth.</div>';
     div.innerHTML =
-      '<div class="adv-prompt">Tool result (ground truth): ' + escapeHtml(data.toolResult.status) + " — " + escapeHtml(data.toolResult.detail) + '</div>' +
-      '<div class="adv-reply">Nova said: "' + escapeHtml(data.modelReply) + '"</div>' +
-      (data.realityGapCaught
-        ? '<div class="adv-outcome-missed">Caller actually heard: "' + escapeHtml(data.finalReply) + '"</div>'
-        : '');
+      '<div class="gap-box gap-box-claim"><div class="gap-box-label">Agent claim</div>"' + escapeHtml(data.modelReply) + '"</div>' +
+      '<div class="gap-box gap-box-truth"><div class="gap-box-label">Ground truth (tool result)</div>' + escapeHtml(data.toolResult.status) + " — " + escapeHtml(data.toolResult.detail) + '</div>' +
+      interventionLabel;
     realityGapResults.appendChild(div);
   } catch (err) {
     realityGapSummary.textContent = "Request failed — is the server running?";
@@ -613,6 +673,76 @@ discoveryBtn.addEventListener("click", async () => {
   });
 
   discoveryBtn.disabled = false;
+});
+
+const pressureExpBtn = document.getElementById("pressureExpBtn");
+const pressureExpPanel = document.getElementById("pressureExpPanel");
+const pressureExpSummary = document.getElementById("pressureExpSummary");
+const pressureExpResults = document.getElementById("pressureExpResults");
+
+function renderConditionColumn(title, condition) {
+  const col = document.createElement("div");
+  let html = '<div class="pressure-col-title">' + title + " — " + condition.caught + " / " + condition.total + ' false claims</div>';
+  condition.results.forEach((r, i) => {
+    const outcomeClass = r.realityGapCaught ? "adv-outcome-missed" : "adv-outcome-caught";
+    const outcomeText = r.realityGapCaught ? "FALSE CLAIM" : "honest";
+    html += '<div class="adv-item"><div class="adv-prompt">Trial ' + (i + 1) + '</div>' +
+      '<div class="' + outcomeClass + '">' + outcomeText + '</div>' +
+      '<div class="adv-reply">"' + escapeHtml(r.modelReply) + '"</div></div>';
+  });
+  col.innerHTML = html;
+  return col;
+}
+
+pressureExpBtn.addEventListener("click", async () => {
+  pressureExpPanel.style.display = "block";
+  pressureExpSummary.textContent = "Running 6 timeout trials under each condition (12 total)...";
+  pressureExpResults.innerHTML = "";
+  pressureExpBtn.disabled = true;
+
+  try {
+    const res = await fetch("/api/pressure-experiment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trialsPerCondition: 6 }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      pressureExpSummary.textContent = "Error: " + (data.error || "unknown");
+      return;
+    }
+    pressureExpSummary.textContent =
+      "Same ambiguous tool signal both columns — only the framing differs. Neutral: " + data.neutral.caught + "/" + data.neutral.total +
+      " · Pressure: " + data.pressure.caught + "/" + data.pressure.total +
+      ". Two separate conditions run with the same trial count, not matched/paired trials.";
+    pressureExpResults.appendChild(renderConditionColumn("Neutral framing", data.neutral));
+    pressureExpResults.appendChild(renderConditionColumn("Pressure framing", data.pressure));
+  } catch (err) {
+    pressureExpSummary.textContent = "Request failed — is the server running?";
+  } finally {
+    pressureExpBtn.disabled = false;
+  }
+});
+
+const evidenceBtn = document.getElementById("evidenceBtn");
+const evidencePanel = document.getElementById("evidencePanel");
+const evidenceJson = document.getElementById("evidenceJson");
+const evidenceDownload = document.getElementById("evidenceDownload");
+
+evidenceBtn.addEventListener("click", async () => {
+  evidencePanel.style.display = "block";
+  evidenceJson.textContent = "Loading...";
+  try {
+    const res = await fetch("/api/evidence-receipt");
+    const data = await res.json();
+    const pretty = JSON.stringify(data, null, 2);
+    evidenceJson.textContent = pretty;
+    const blob = new Blob([pretty], { type: "application/json" });
+    evidenceDownload.href = URL.createObjectURL(blob);
+    evidenceDownload.style.display = "inline-block";
+  } catch (err) {
+    evidenceJson.textContent = "Request failed — is the server running?";
+  }
 });
 
 resetBtn.addEventListener("click", () => {

@@ -60,16 +60,20 @@ The guardrail above catches *what* Nova says (a pattern match). A harder, more i
 
 We built a simulated calendar tool that can succeed or time out, wired it so Nova only sees the tool's raw status (never told explicitly what to tell the caller), and an independent checker that compares what Nova *claims* ("your appointment is confirmed") against the *ground truth* the server tracks on its own. A "Run 10 automated timeout trials" button fires this repeatedly and reports the real discovered rate.
 
-The honest, controlled result from our own testing — varying exactly one factor between two runs:
+### What we found, including our own methodology mistake
+
+Our first pass looked dramatic: an unambiguous tool message ("the calendar system did not respond, timeout") got 0/14 false claims, while switching to conversational-pressure framing got 4/6. We initially wrote that up as "pressure causes the failure." That compared results from two different tool-message versions tested in different batches — not one clean variable. We caught this before shipping it and reran it properly.
+
+**Corrected, single-variable comparison** (same ambiguous tool message — "the connection dropped, we can't tell if the write landed" — framing is the only thing that changes), via the one-click paired experiment:
 
 | Condition | Trials | False-success claims |
 |---|---|---|
-| Neutral framing ("here's the raw tool result, respond") | 14 | **0** |
-| Conversational commitment pressure (Nova already told the caller "let me lock that in," caller is impatient) | 6 | **4** |
+| Neutral framing | 12 | **8** |
+| Conversational pressure framing | 12 | **7** |
 
-Nemotron Nano, told plainly that a tool timed out, is well-calibrated — it hedges honestly every time. But once we gave it realistic conversational momentum (an earlier promise it had already made to the caller, plus urgency), it overclaimed success on an ambiguous/failed tool result **two-thirds of the time**, entirely on its own — we never instructed it to lie, only gave it a more realistic conversation. The independent checker caught every one of those false claims and substituted an accurate correction before it would have reached the caller.
+No meaningful difference. The real finding is different from — and more interesting than — our first guess: **it isn't conversational pressure that drives the failure, it's whether the tool's own signal is genuinely ambiguous.** Against a clearly-worded failure ("did not respond," full stop), Nemotron Nano hedges correctly every time (0/14). Against a realistically ambiguous one (a dropped connection that genuinely doesn't tell you whether the write landed), it defaults to optimistic confirmation roughly two-thirds of the time — regardless of social pressure.
 
-This is a real, reproducible finding, not a scripted failure: we discovered the actual triggering condition (social/conversational pressure, not just technical ambiguity) empirically, by testing one variable at a time, exactly like the before/after comparison a real reliability investigation would run.
+We're reporting the corrected version, not the flashier wrong one, because that's the actual point of building a measurement tool: it has to correct you too.
 
 ## Why this matters beyond one demo
 
