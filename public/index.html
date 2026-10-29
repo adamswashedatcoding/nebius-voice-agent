@@ -8,6 +8,7 @@
   :root {
     --bg: #05070d;
     --panel: #0c1222;
+    --panel-soft: #0a0f1d;
     --panel-border: #1b2440;
     --text: #e8ecf8;
     --muted: #7c89ad;
@@ -16,6 +17,8 @@
     --user-bubble: #16203b;
     --nova-bubble: #121a30;
     --ok: #35d08a;
+    --warn: #ffc832;
+    --danger: #ff5566;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -26,47 +29,111 @@
     min-height: 100vh;
   }
   .wrap {
-    max-width: 640px;
+    max-width: 760px;
     margin: 0 auto;
-    padding: 32px 20px 60px;
+    padding: 0 20px 60px;
+  }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 0;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--panel-border);
+    margin-bottom: 28px;
+  }
+  .top-bar .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 8px var(--ok);
   }
   header {
     text-align: center;
-    margin-bottom: 28px;
+    margin-bottom: 32px;
   }
   header h1 {
-    font-size: 26px;
-    margin: 0 0 6px;
+    font-size: 30px;
+    margin: 0 0 8px;
     letter-spacing: -0.02em;
+    font-weight: 800;
   }
   header p {
     color: var(--muted);
     font-size: 14px;
-    margin: 0;
+    margin: 0 auto;
+    max-width: 480px;
+    line-height: 1.5;
   }
   .badges {
     display: flex;
     gap: 8px;
     justify-content: center;
-    margin-top: 14px;
+    margin-top: 16px;
     flex-wrap: wrap;
   }
   .badge {
     font-size: 11px;
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-radius: 100px;
     border: 1px solid var(--panel-border);
     color: var(--muted);
     background: var(--panel);
   }
+
+  /* --- Section scaffolding ------------------------------------------------ */
+  .section {
+    margin-bottom: 36px;
+  }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .section-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(79, 123, 255, 0.12);
+    border: 1px solid rgba(79, 123, 255, 0.3);
+    border-radius: 6px;
+    padding: 2px 7px;
+    letter-spacing: 0.04em;
+  }
+  .section-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .section-desc {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 4px 0 16px;
+    line-height: 1.5;
+    max-width: 560px;
+  }
+  .section-body {
+    background: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+
+  /* --- Call stage ---------------------------------------------------------- */
   .orb-stage {
     display: flex;
     justify-content: center;
-    margin: 20px 0 28px;
+    margin: 4px 0 20px;
   }
   .orb {
-    width: 120px;
-    height: 120px;
+    width: 108px;
+    height: 108px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #6e93ff, #2c45a8 60%, #0c1430 100%);
     box-shadow: 0 0 0 0 var(--accent-glow);
@@ -91,27 +158,31 @@
     text-align: center;
     font-size: 13px;
     color: var(--muted);
-    margin-bottom: 20px;
+    margin-bottom: 18px;
     min-height: 18px;
   }
   .controls {
     display: flex;
     justify-content: center;
-    gap: 12px;
-    margin-bottom: 28px;
+    gap: 10px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
   }
+  .controls:last-child { margin-bottom: 0; }
   button {
     font-family: inherit;
     border: none;
     cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
   }
+  button:active { transform: scale(0.98); }
   #micBtn {
-    padding: 14px 32px;
+    padding: 14px 34px;
     border-radius: 100px;
     background: var(--accent);
     color: white;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 700;
     box-shadow: 0 8px 24px var(--accent-glow);
   }
   #micBtn:disabled {
@@ -119,35 +190,37 @@
     cursor: not-allowed;
   }
   #micBtn.active {
-    background: #ff5566;
+    background: var(--danger);
     box-shadow: 0 8px 24px rgba(255, 85, 102, 0.35);
   }
   #resetBtn {
     padding: 14px 20px;
     border-radius: 100px;
-    background: var(--panel);
+    background: transparent;
     border: 1px solid var(--panel-border);
     color: var(--muted);
     font-size: 14px;
   }
-  #adversarialBtn, #bookNormalBtn, #bookTimeoutBtn, #discoveryBtn, #pressureExpBtn, #evidenceBtn, #confoundBtn, #scoreboardBtn, #selfTestBtn, #verifierFailBtn, .reproduceBtn {
-    padding: 14px 20px;
+  .btn-test {
+    padding: 11px 18px;
     border-radius: 100px;
-    background: transparent;
-    border: 1px solid rgba(255, 85, 102, 0.4);
-    color: #ff8a97;
-    font-size: 13px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
   }
-  #bookNormalBtn {
-    border-color: rgba(53, 208, 138, 0.4);
-    color: #7ee0ab;
-  }
+  .btn-test.btn-danger { border-color: rgba(255, 85, 102, 0.4); color: #ff8a97; }
+  .btn-test.btn-ok { border-color: rgba(53, 208, 138, 0.4); color: #7ee0ab; }
+  .btn-test.btn-warn { border-color: rgba(255, 200, 50, 0.4); color: #ffd980; }
+  .btn-test:disabled { opacity: 0.45; cursor: not-allowed; }
+
   .adversarial-panel {
     background: var(--panel);
     border: 1px solid var(--panel-border);
     border-radius: 12px;
     padding: 14px 16px;
-    margin-bottom: 20px;
+    margin-top: 16px;
   }
   .adversarial-summary {
     font-size: 13px;
@@ -162,7 +235,7 @@
   .adv-item:first-child { border-top: none; }
   .adv-prompt { color: var(--muted); margin-bottom: 4px; }
   .adv-outcome-caught { color: var(--ok); font-weight: 700; }
-  .adv-outcome-missed { color: #ff5566; font-weight: 700; }
+  .adv-outcome-missed { color: var(--danger); font-weight: 700; }
   .adv-reply { color: var(--text); margin-top: 4px; }
   .pressure-columns {
     display: grid;
@@ -212,6 +285,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    margin-top: 18px;
   }
   .bubble {
     padding: 12px 16px;
@@ -306,17 +380,20 @@
   }
   footer {
     text-align: center;
-    margin-top: 40px;
+    margin-top: 10px;
+    padding-top: 24px;
+    border-top: 1px solid var(--panel-border);
     font-size: 12px;
     color: var(--muted);
   }
 </style>
 </head>
 <body>
+  <div class="top-bar"><span class="dot"></span> nvidia nemotron · nebius token factory · live inference</div>
   <div class="wrap">
     <header>
       <h1>Glassbox</h1>
-      <p>Nova — the proof-of-concept agent. Every reply ships with its real reasoning trace and a live cost receipt.</p>
+      <p>Nova is the proof-of-concept agent. Every reply ships with its real reasoning trace and a live cost receipt — and every mechanism below is tested against its own failure modes, not just Nova's.</p>
       <div class="badges">
         <span class="badge">NVIDIA Nemotron</span>
         <span class="badge">Nebius Token Factory</span>
@@ -325,90 +402,130 @@
       </div>
     </header>
 
-    <div class="orb-stage">
-      <div class="orb" id="orb"></div>
-    </div>
-    <div class="status" id="status">Tap "Start Call" and speak like a customer</div>
-
-    <div class="cost-ticker" id="costTicker">
-      <div class="cost-row">
-        <span class="cost-label">Nebius / Nemotron inference, this call</span>
-        <span class="cost-value" id="costNebius">$0.000000</span>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-num">01</span>
+        <span class="section-title">Live Call</span>
       </div>
-      <div class="cost-row">
-        <span class="cost-label">ElevenLabs Agents hosting fee, same duration (excl. LLM)</span>
-        <span class="cost-value cost-value-muted" id="costEleven">$0.0000</span>
+      <p class="section-desc">Talk to Nova. Each reply carries its real chain-of-thought and a live cost receipt computed from actual token usage.</p>
+      <div class="section-body">
+        <div class="orb-stage">
+          <div class="orb" id="orb"></div>
+        </div>
+        <div class="status" id="status">Tap "Start Call" and speak like a customer</div>
+
+        <div class="cost-ticker" id="costTicker">
+          <div class="cost-row">
+            <span class="cost-label">Nebius / Nemotron inference, this call</span>
+            <span class="cost-value" id="costNebius">$0.000000</span>
+          </div>
+          <div class="cost-row">
+            <span class="cost-label">ElevenLabs Agents hosting fee, same duration (excl. LLM)</span>
+            <span class="cost-value cost-value-muted" id="costEleven">$0.0000</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="micBtn">Start Call</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="transcript" id="transcript"></div>
+        <div class="unsupported" id="unsupported" style="display:none;">
+          This browser doesn't support the Web Speech API for voice capture. Try Chrome or Edge, or type your message below.
+        </div>
       </div>
     </div>
 
-    <div class="controls">
-      <button id="micBtn">Start Call</button>
-      <button id="resetBtn">Reset</button>
-      <button id="adversarialBtn">Run adversarial test (discover + verify defense)</button>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-num">02</span>
+        <span class="section-title">Guardrail</span>
+      </div>
+      <p class="section-desc">An independent, outside-the-model check that blocks any invented price or address — then a 6-prompt adversarial battery that reports its real catch rate, misses included.</p>
+      <div class="section-body">
+        <div class="controls">
+          <button class="btn-test btn-danger" id="adversarialBtn">Run adversarial test (discover + verify defense)</button>
+        </div>
+        <div class="adversarial-panel" id="adversarialPanel" style="display:none;">
+          <div class="adversarial-summary" id="adversarialSummary"></div>
+          <div class="adversarial-results" id="adversarialResults"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="adversarial-panel" id="adversarialPanel" style="display:none;">
-      <div class="adversarial-summary" id="adversarialSummary"></div>
-      <div class="adversarial-results" id="adversarialResults"></div>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-num">03</span>
+        <span class="section-title">Reality Gap</span>
+      </div>
+      <p class="section-desc">Does Nova's claim match what actually happened? A simulated calendar tool can succeed, time out, or have its own verifier fail — and the system must never silently call an unverified claim "clean."</p>
+      <div class="section-body">
+        <div class="controls">
+          <button class="btn-test btn-ok" id="bookNormalBtn">Attempt booking (normal)</button>
+          <button class="btn-test btn-danger" id="bookTimeoutBtn">Attempt booking (simulate timeout)</button>
+          <button class="btn-test btn-warn" id="verifierFailBtn">Simulate verifier failure (fail-closed test)</button>
+          <button class="btn-test btn-danger" id="discoveryBtn">Run 10 automated timeout trials</button>
+        </div>
+        <div class="adversarial-panel" id="realityGapPanel" style="display:none;">
+          <div class="adversarial-summary" id="realityGapSummary"></div>
+          <div class="adversarial-results" id="realityGapResults"></div>
+        </div>
+        <div class="adversarial-panel" id="discoveryPanel" style="display:none;">
+          <div class="adversarial-summary" id="discoverySummary"></div>
+          <div class="adversarial-results" id="discoveryResults"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="controls">
-      <button id="bookNormalBtn">Attempt booking (normal)</button>
-      <button id="bookTimeoutBtn">Attempt booking (simulate calendar timeout)</button>
-      <button id="verifierFailBtn">Simulate verifier failure (fail-closed test)</button>
-      <button id="discoveryBtn">Run 10 automated timeout trials (discover failure rate)</button>
+    <div class="section">
+      <div class="section-head">
+        <span class="section-num">04</span>
+        <span class="section-title">Controlled Experiment</span>
+      </div>
+      <p class="section-desc">Neutral framing vs. conversational pressure, same ambiguous tool signal both columns — real denominators, not matched/paired trials.</p>
+      <div class="section-body">
+        <div class="controls">
+          <button class="btn-test" id="pressureExpBtn">Run paired experiment (6 trials each)</button>
+        </div>
+        <div class="adversarial-panel" id="pressureExpPanel" style="display:none;">
+          <div class="adversarial-summary" id="pressureExpSummary"></div>
+          <div class="pressure-columns" id="pressureExpResults"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="adversarial-panel" id="realityGapPanel" style="display:none;">
-      <div class="adversarial-summary" id="realityGapSummary"></div>
-      <div class="adversarial-results" id="realityGapResults"></div>
-    </div>
-
-    <div class="adversarial-panel" id="discoveryPanel" style="display:none;">
-      <div class="adversarial-summary" id="discoverySummary"></div>
-      <div class="adversarial-results" id="discoveryResults"></div>
-    </div>
-
-    <div class="controls">
-      <button id="pressureExpBtn">Run paired experiment (neutral vs. pressure, 6 trials each)</button>
-      <button id="evidenceBtn">View Evidence Receipt</button>
-    </div>
-
-    <div class="adversarial-panel" id="pressureExpPanel" style="display:none;">
-      <div class="adversarial-summary" id="pressureExpSummary"></div>
-      <div class="pressure-columns" id="pressureExpResults"></div>
-    </div>
-
-    <div class="adversarial-panel" id="evidencePanel" style="display:none;">
-      <div class="adversarial-summary" id="evidenceSummary">Evidence Receipt</div>
-      <pre class="evidence-json" id="evidenceJson"></pre>
-      <a id="evidenceDownload" style="display:none;" download="glassbox-evidence-receipt.json">Download as JSON</a>
-    </div>
-
-    <div class="controls">
-      <button id="confoundBtn">Run Confound Detector</button>
-      <button id="scoreboardBtn">View Honest Scoreboard</button>
-      <button id="selfTestBtn">Run Self-Test (5 deterministic checks)</button>
-    </div>
-
-    <div class="adversarial-panel" id="selfTestPanel" style="display:none;">
-      <div class="adversarial-summary" id="selfTestSummary">Self-Test</div>
-      <div class="adversarial-results" id="selfTestResults"></div>
-    </div>
-
-    <div class="adversarial-panel" id="confoundPanel" style="display:none;">
-      <div class="adversarial-summary" id="confoundSummary">Confound Detector</div>
-      <div class="adversarial-results" id="confoundResults"></div>
-    </div>
-
-    <div class="adversarial-panel" id="scoreboardPanel" style="display:none;">
-      <div class="adversarial-summary" id="scoreboardSummary">Honest Scoreboard</div>
-      <div class="adversarial-results" id="scoreboardResults"></div>
-    </div>
-
-    <div class="transcript" id="transcript"></div>
-    <div class="unsupported" id="unsupported" style="display:none;">
-      This browser doesn't support the Web Speech API for voice capture. Try Chrome or Edge, or type your message below.
+    <div class="section">
+      <div class="section-head">
+        <span class="section-num">05</span>
+        <span class="section-title">Integrity &amp; Evidence</span>
+      </div>
+      <p class="section-desc">The tools that keep the other four honest: an exportable evidence record, a confound check against our own past mistake, a scoreboard with uncertainty intervals, and a deterministic self-test of Glassbox's own logic.</p>
+      <div class="section-body">
+        <div class="controls">
+          <button class="btn-test" id="evidenceBtn">View Evidence Receipt</button>
+          <button class="btn-test" id="confoundBtn">Run Confound Detector</button>
+          <button class="btn-test" id="scoreboardBtn">View Honest Scoreboard</button>
+          <button class="btn-test" id="selfTestBtn">Run Self-Test (5 checks)</button>
+        </div>
+        <div class="adversarial-panel" id="evidencePanel" style="display:none;">
+          <div class="adversarial-summary" id="evidenceSummary">Evidence Receipt</div>
+          <pre class="evidence-json" id="evidenceJson"></pre>
+          <a id="evidenceDownload" style="display:none;" download="glassbox-evidence-receipt.json">Download as JSON</a>
+        </div>
+        <div class="adversarial-panel" id="confoundPanel" style="display:none;">
+          <div class="adversarial-summary" id="confoundSummary">Confound Detector</div>
+          <div class="adversarial-results" id="confoundResults"></div>
+        </div>
+        <div class="adversarial-panel" id="scoreboardPanel" style="display:none;">
+          <div class="adversarial-summary" id="scoreboardSummary">Honest Scoreboard</div>
+          <div class="adversarial-results" id="scoreboardResults"></div>
+        </div>
+        <div class="adversarial-panel" id="selfTestPanel" style="display:none;">
+          <div class="adversarial-summary" id="selfTestSummary">Self-Test</div>
+          <div class="adversarial-results" id="selfTestResults"></div>
+        </div>
+      </div>
     </div>
 
     <footer>Open weights, not a vendor black box — reasoning and cost are real API data, not UI dressing.</footer>
