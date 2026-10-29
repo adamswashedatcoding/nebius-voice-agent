@@ -159,6 +159,63 @@
     color: var(--muted);
     margin-bottom: 4px;
   }
+  .cost-ticker {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cost-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .cost-label {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .cost-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ok);
+    font-family: "SF Mono", Consolas, monospace;
+    white-space: nowrap;
+  }
+  .cost-value-muted {
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .reasoning {
+    margin-top: 8px;
+  }
+  .reasoning summary {
+    font-size: 11px;
+    color: #a8b6e0;
+    cursor: pointer;
+    list-style: none;
+  }
+  .reasoning summary::-webkit-details-marker { display: none; }
+  .reasoning summary::before {
+    content: "⚡ ";
+  }
+  .reasoning-text {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+    max-height: 220px;
+    overflow-y: auto;
+  }
   .unsupported {
     text-align: center;
     color: var(--muted);
@@ -194,6 +251,17 @@
     </div>
     <div class="status" id="status">Tap "Start Call" and speak like a customer</div>
 
+    <div class="cost-ticker" id="costTicker">
+      <div class="cost-row">
+        <span class="cost-label">Nebius / Nemotron inference, this call</span>
+        <span class="cost-value" id="costNebius">$0.000000</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">ElevenLabs Agents hosting fee, same duration (excl. LLM)</span>
+        <span class="cost-value cost-value-muted" id="costEleven">$0.0000</span>
+      </div>
+    </div>
+
     <div class="controls">
       <button id="micBtn">Start Call</button>
       <button id="resetBtn">Reset</button>
@@ -218,13 +286,38 @@ const unsupportedEl = document.getElementById("unsupported");
 let messages = [];
 let recognition = null;
 let listening = false;
+let callStartedAt = null;
+let totalNebiusCost = 0;
 
-function addBubble(role, text) {
+const costNebiusEl = document.getElementById("costNebius");
+const costElevenEl = document.getElementById("costEleven");
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function addBubble(role, text, reasoning) {
   const div = document.createElement("div");
   div.className = "bubble " + (role === "user" ? "user" : "nova");
-  div.innerHTML = '<div class="who">' + (role === "user" ? "Caller" : "Nova") + '</div>' + text;
+  let html = '<div class="who">' + (role === "user" ? "Caller" : "Nova") + '</div>' + text;
+  if (reasoning) {
+    html +=
+      '<details class="reasoning"><summary>Show Nova\'s reasoning (real chain-of-thought, not scripted)</summary>' +
+      '<div class="reasoning-text">' + escapeHtml(reasoning.trim()) + '</div></details>';
+  }
+  div.innerHTML = html;
   transcriptEl.appendChild(div);
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+function updateCostTicker(nebiusCostUsd, elevenlabsPricePerMin) {
+  if (!callStartedAt) callStartedAt = Date.now();
+  totalNebiusCost += nebiusCostUsd;
+  const minutesElapsed = (Date.now() - callStartedAt) / 60000;
+  const elevenlabsEquivalent = minutesElapsed * elevenlabsPricePerMin;
+
+  costNebiusEl.textContent = "$" + totalNebiusCost.toFixed(6);
+  costElevenEl.textContent = "$" + elevenlabsEquivalent.toFixed(4);
 }
 
 function setStatus(text) {
@@ -251,7 +344,8 @@ async function sendToNova(userText) {
     }
 
     messages.push({ role: "assistant", content: data.reply });
-    addBubble("nova", data.reply);
+    addBubble("nova", data.reply, data.reasoning);
+    if (data.cost) updateCostTicker(data.cost.nebiusCostUsd, data.cost.elevenlabsPricePerMin);
     speak(data.reply);
   } catch (err) {
     setStatus("Network error");
@@ -329,6 +423,10 @@ micBtn.addEventListener("click", () => {
 resetBtn.addEventListener("click", () => {
   messages = [];
   transcriptEl.innerHTML = "";
+  callStartedAt = null;
+  totalNebiusCost = 0;
+  costNebiusEl.textContent = "$0.000000";
+  costElevenEl.textContent = "$0.0000";
   setStatus("Reset. Tap Start Call to begin again.");
   window.speechSynthesis.cancel();
 });
